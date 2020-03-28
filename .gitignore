@@ -1,1 +1,27 @@
+# https://raw.githubusercontent.com/github/gitignore/master/Go.gitignore @2020-03-28
+# Binaries for programs and plugins
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# https://raw.githubusercontent.com/github/gitignore/master/Global/VisualStudioCode.gitignore @2020-03-28
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# other vscode files
+__debug_bin
