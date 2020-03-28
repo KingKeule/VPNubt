@@ -37,21 +37,19 @@ func InitGUI() {
 	})
 
 	// ---------------- Container Ping ----------------
-	buttonPing := widget.NewButton("Ping Server", func() {
+	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-		log.Println("Start pinging server (" + inputIP.Text + ")")
-		err := ping(inputIP.Text)
-		if err != nil {
-			log.Println("NOK")
-			log.Println(err)
+	buttonPing := widget.NewButton("Ping Server", func() {
+		log.Println("Start pinging server (IP: " + inputIP.Text + ")")
+		recieved, err := ping(inputIP.Text)
+		if err != nil || !recieved {
+			widgetPingStatus.SetText("NOK")
+			w.Show()
 		} else {
-			log.Println("OK")
+			widgetPingStatus.SetText("OK")
+			w.Show()
 		}
 	})
-
-	widgetPingStatus := widget.NewLabel("OK")
-	widgetPingStatus.TextStyle = fyne.TextStyle{Bold: false}
-	widgetPingStatus.Alignment = fyne.TextAlignCenter
 
 	widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
 		buttonPing, widgetPingStatus))
