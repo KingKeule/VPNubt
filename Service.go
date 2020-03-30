@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +26,7 @@ type IPv4Routing struct {
 	Mask    net.IP
 	Gateway net.IP
 	Iface   net.IP
-	Metric  uint
+	Metric  int
 }
 
 func initService() {
@@ -39,14 +41,43 @@ func initService() {
 	}()
 
 	scanner := bufio.NewScanner(r)
-	//routes := make([]IPv4Routing, 10)
+	routes := make([]IPv4Routing, 0)
+	routeLinesFound := false
+	routeLinesOffset := -4 // distance from line matched "IPv4-Routentabelle" to first line with table data
+	routeLineSplit := regexp.MustCompile(`\s{2,}`)
 	for scanner.Scan() {
 		ucl := scanner.Text()
-		target := strings.Contains(ucl, "IPv4-Routentabelle")
-		if target {
-			fmt.Println(ucl)
+
+		if 0 == routeLinesOffset {
+
+			if strings.Contains(ucl, "=") {
+				break
+			}
+
+			split := routeLineSplit.Split(ucl, -1)
+			//fmt.Printf("%#v\n", split)
+
+			metric, _ := strconv.Atoi(split[5])
+
+			routes = append(routes,
+				IPv4Routing{
+					Target:  net.ParseIP(split[1]),
+					Mask:    net.ParseIP(split[2]),
+					Gateway: net.ParseIP(split[3]),
+					Iface:   net.ParseIP(split[4]),
+					Metric:  metric})
+
+		} else if !routeLinesFound {
+			if strings.Contains(ucl, "IPv4-Routentabelle") {
+				routeLinesFound = true
+				routeLinesOffset++
+			}
+		} else {
+			routeLinesOffset++
 		}
 	}
+
+	//fmt.Printf("%s", routes[0])
 
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
