@@ -14,12 +14,16 @@ import (
 
 	"os/exec"
 
+	"github.com/google/gopacket/pcap"
 	"github.com/tatsushid/go-fastping"
 )
 
 type config struct {
-	network net.IP // the address to reach default gateway
+	defaultIface net.IP // the interface to reach default gateway
+	pcapIface    pcap.Interface
 }
+
+var currentConfig config
 
 type IPv4Routing struct {
 	Target  net.IP
@@ -27,6 +31,15 @@ type IPv4Routing struct {
 	Gateway net.IP
 	Iface   net.IP
 	Metric  int
+}
+
+func AnyPcapAddress(these []pcap.InterfaceAddress, other net.IP) bool {
+	for _, cur := range these {
+		if cur.IP.Equal(other) {
+			return true
+		}
+	}
+	return false
 }
 
 func initService() {
@@ -83,6 +96,25 @@ func initService() {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return
 	}
+
+	// routes already sorted by metric, so take first
+	// TODO consider dynamic changes
+	currentConfig.defaultIface = routes[0].Iface
+
+	allEthDevs, err := pcap.FindAllDevs()
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, ethDev := range allEthDevs {
+		if AnyPcapAddress(ethDev.Addresses, currentConfig.defaultIface) {
+			currentConfig.pcapIface = ethDev
+			break
+		}
+	}
+
+	fmt.Println(currentConfig.pcapIface.Description)
 }
 
 func ping(addr string) (bool, error) {
