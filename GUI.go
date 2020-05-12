@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"strconv"
 
 	"fyne.io/fyne"
@@ -21,60 +22,77 @@ func InitGUI() {
 	app := app.New()
 
 	// Initialize our new fyne interface application.
-	w := app.NewWindow("VPN packet tunneler")
+	w := app.NewWindow("  VPNubt v0.9")
+
+	// center the windows on the screen
+	w.CenterOnScreen()
+
+	// do not allow to resize the window
+	w.SetFixedSize(true)
 
 	// Set a sane default for the window size.
 	// w.Resize(fyne.NewSize(screenWidth, screenHight))
 
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
-	inputIP := widget.NewEntry()
-	inputIP.SetPlaceHolder(dstIP.String())
+	defaultConf := getDefaultConf()
 
+	// destiantion IP
+	inputdstIP := widget.NewEntry()
+	inputdstIP.SetPlaceHolder(defaultConf.dstIP.String())
+
+	// destination port
 	inputPort := widget.NewEntry()
-	inputPort.SetPlaceHolder(strconv.Itoa(dstPort))
+	inputPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
 
-	labelProtocolTpye := widget.NewLabelWithStyle("Protocol type", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	selectProtocolTpye := widget.NewSelect([]string{"UDP", "TCP"}, func(selected string) {
-		switch selected {
-		case "UDP":
-			protocoltpye = "UDP"
-		case "TCP":
-			protocoltpye = "TCP"
-		}
-	})
-	containerProtocolTpye := fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		labelProtocolTpye, selectProtocolTpye)
+	// network device
+	labelNetDevice := widget.NewLabelWithStyle("    Interface :", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	selectNetDevice := widget.NewSelect(getNetworkDevices(), func(selected string) {})
+	containerNetDevice := fyne.NewContainerWithLayout(layout.NewGridLayout(2),
+		labelNetDevice, selectNetDevice)
 
 	widgetGroupConf := widget.NewGroup("Configuration", &widget.Form{
 		// Items: []*widget.FormItem{{"IP of Server", inputIP}, {"Port of Server", inputPort}, {"", widget.NewLabel("")}}, // ToDo: Remove when spacer is working
-		Items: []*widget.FormItem{{"IP of Server", inputIP}, {"Port of Server", inputPort}},
-	}, containerProtocolTpye)
+		Items: []*widget.FormItem{{"IP of Server :", inputdstIP}, {"UDP Port :", inputPort}},
+	}, containerNetDevice)
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	buttonPing := widget.NewButton("Ping Server", func() {
-		log.Println("Start pinging server (IP: " + inputIP.Text + ")")
-		recieved, err := ping(inputIP.Text)
-		if err != nil || !recieved {
-			widgetPingStatus.SetText("NOK")
+		if (inputdstIP.Text == "") || (inputdstIP.Text == "0.0.0.0") {
+			log.Println("The IP address is not correct. Please set a valid IP adress.")
 		} else {
-			widgetPingStatus.SetText("OK")
+			log.Println("Start pinging server (IP: " + inputdstIP.Text + ")")
+			recieved, err := ping(inputdstIP.Text)
+			if err != nil || !recieved {
+				widgetPingStatus.SetText("NOK")
+			} else {
+				widgetPingStatus.SetText("OK")
+			}
 		}
 	})
 
 	widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
 		buttonPing, widgetPingStatus))
 
-	widgetTunnelServiceStat := widget.NewLabel("Not running")
-	widgetTunnelServiceStat.TextStyle = fyne.TextStyle{Bold: false}
-	widgetTunnelServiceStat.Alignment = fyne.TextAlignCenter
-
 	// ---------------- Container Service Command ----------------
+	widgetTunnelServiceStat := widget.NewLabelWithStyle("Not running", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
+
 	buttonTunnelServiceStat := widget.NewButton("Start", func() {
-		log.Println("Start tunneling service")
-		//widgetTunnelServiceStat = widget.NewLabel("Running") //ToDo : Change Status of widget
+		port, err := strconv.Atoi(inputPort.Text)
+		if (inputdstIP.Text == "") || (inputdstIP.Text == "0.0.0.0") {
+			log.Println("The IP address is not correct. Please set a valid IP adress.")
+		} else if (err != nil) || (port < 1) || (port > 65535) {
+			log.Println("The UDP port is not correct. Please set a UDP valid port (1-65535).")
+		} else if selectNetDevice.Selected == "" {
+			log.Println("The selection of the network device is not set. Please select network device.")
+		} else {
+			log.Println("Start tunneling service")
+			// capture packets and forward them to the set IP address
+			capturePackets(selectNetDevice.Selected, net.ParseIP(inputdstIP.Text), port)
+			//widgetTunnelServiceStat = widget.NewLabel("Running") //ToDo : Change Status of widget
+		}
 	})
 
 	widgetGroupTunnelService := widget.NewGroup("Tunnelling Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
@@ -93,10 +111,10 @@ func InitGUI() {
 	w.SetMainMenu(fyne.NewMainMenu(
 		fyne.NewMenu("Tool",
 			fyne.NewMenuItem("Reset configuration", func() {
-				setDefaultConf()
-				//TODO find an better way for update the variables
-				inputIP.SetText(strconv.Itoa(dstPort))
-				inputPort.SetText(strconv.Itoa(dstPort))
+				defaultConf := getDefaultConf()
+				//TODO find an better way for update the variables and move menu ahead
+				inputdstIP.SetText(defaultConf.dstIP.String())
+				inputPort.SetText(strconv.Itoa(defaultConf.dstPort))
 				//TODO not possible to go back to default choice
 				// selectProtocolTpye.SetSelected("Select one")
 				widgetPingStatus.SetText("")
@@ -104,10 +122,9 @@ func InitGUI() {
 			fyne.NewMenuItem("Import configuration", func() {})),
 		fyne.NewMenu("Preload Configuration",
 			fyne.NewMenuItem("Warcraft 3", func() {
-				setWar3Conf()
-				//TODO find an better way for update the variables
-				inputPort.SetText(strconv.Itoa(dstPort))
-				selectProtocolTpye.SetSelected(protocoltpye)
+				w3Conf := getWar3Conf()
+				//TODO find an better way for update the variables and move menu ahead
+				inputPort.SetText(strconv.Itoa(w3Conf.dstPort))
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {

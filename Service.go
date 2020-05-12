@@ -3,8 +3,12 @@ package main
 import (
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/pcap"
 	"github.com/tatsushid/go-fastping"
 )
 
@@ -35,4 +39,87 @@ func ping(addr string) (bool, error) {
 	}
 
 	return recieved, nil
+}
+
+func getNetworkDevices() []string {
+
+	// get the names from all network interfaces
+	netDeviceList, err := net.Interfaces()
+	if err != nil {
+		panic(err)
+	}
+
+	// copy network list to a string array
+	var netDeviceListS []string
+	for _, param := range netDeviceList {
+		if !strings.Contains(param.Name, "Loopback") {
+			netDeviceListS = append(netDeviceListS, param.Name)
+		}
+	}
+
+	return netDeviceListS
+}
+
+func getWindowsNetworkDeviceAddr(networkName string) string {
+
+	var winNetDevice string
+
+	//TODO Update the function for correct name lookup
+	winNetDevice = networkName
+
+	return winNetDevice
+}
+
+func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
+
+	var snapshotLength int32 = 1024 // the maximum size to read for each packet
+	var promiscuous bool = false    // interface in promiscuous mode
+
+	// Open network device
+	handle, err := pcap.OpenLive(getWindowsNetworkDeviceAddr(networkDevice), snapshotLength, promiscuous, pcap.BlockForever)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
+
+	// Set pcap filter
+	filter := "udp and port " + strconv.Itoa(dstPort) + " and ip broadcast"
+	err = handle.SetBPFFilter(filter)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Set pcap filter to: " + filter + ".")
+
+	// Use the handle as a packet source to process all packets
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		// forward each caputred packet
+		log.Println("Broadcast packet was captured and will be forwareded as unicast to " + dstIP.String())
+		forwardPacket(dstIP, dstPort, packet)
+	}
+}
+
+func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
+
+	serverAddr, err := net.ResolveUDPAddr("udp4", dstIP.String()+":"+strconv.Itoa(dstPort))
+	if err != nil {
+		panic(err)
+	}
+
+	conn, err := net.ListenPacket("udp", ":"+strconv.Itoa(dstPort))
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// get payload from captured packet
+	data := packet.ApplicationLayer().Payload()
+
+	// send new unicast packet to server
+	_, err = conn.WriteTo(data, serverAddr)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("Packet was successfully forwarded as unicast to: " + dstIP.String())
+	}
 }
