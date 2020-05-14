@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -62,6 +61,9 @@ func getNetworkDevices() []string {
 }
 
 func anyPcapAddress(these []pcap.InterfaceAddress, other net.IP) bool {
+	if nil == other {
+		return false
+	}
 	for _, cur := range these {
 		if cur.IP.Equal(other) {
 			return true
@@ -77,7 +79,7 @@ func sameIP(netIface net.Interface, pcapIface pcap.Interface) bool {
 		return false
 	}
 	for _, addr := range addrs {
-		addrNoPort := net.ParseIP(addr.String())
+		addrNoPort, _, _ := net.ParseCIDR(addr.String())
 		if anyPcapAddress(pcapIface.Addresses, addrNoPort) {
 			return true
 		}
@@ -101,10 +103,6 @@ func getWindowsNetworkDeviceAddr(networkName string) string {
 		}
 	}
 
-	// take ip from ifaces
-	// compare to pcap devices
-	// return pcap device name "/dev/uuid"
-
 	pcapIfaces, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Fatal(err)
@@ -117,16 +115,7 @@ func getWindowsNetworkDeviceAddr(networkName string) string {
 		}
 	}
 
-	fmt.Println("!!!!!!!!!!!!!!!!!!!!!! ", result)
-
 	return result
-
-	// var winNetDevice string
-
-	// //TODO Update the function for correct name lookup
-	// winNetDevice = networkName
-
-	// return winNetDevice
 }
 
 func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
