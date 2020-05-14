@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -60,14 +61,72 @@ func getNetworkDevices() []string {
 	return netDeviceListS
 }
 
+func anyPcapAddress(these []pcap.InterfaceAddress, other net.IP) bool {
+	for _, cur := range these {
+		if cur.IP.Equal(other) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameIP(netIface net.Interface, pcapIface pcap.Interface) bool {
+	addrs, err := netIface.Addrs()
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+	for _, addr := range addrs {
+		addrNoPort := net.ParseIP(addr.String())
+		if anyPcapAddress(pcapIface.Addresses, addrNoPort) {
+			return true
+		}
+	}
+	return false
+}
+
 func getWindowsNetworkDeviceAddr(networkName string) string {
 
-	var winNetDevice string
+	result := ""
 
-	//TODO Update the function for correct name lookup
-	winNetDevice = networkName
+	netIfaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var guiSelectedInterface net.Interface
+	for _, iface := range netIfaces {
+		if iface.Name == networkName {
+			guiSelectedInterface = iface
+			break
+		}
+	}
 
-	return winNetDevice
+	// take ip from ifaces
+	// compare to pcap devices
+	// return pcap device name "/dev/uuid"
+
+	pcapIfaces, err := pcap.FindAllDevs()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, pcd := range pcapIfaces {
+		if sameIP(guiSelectedInterface, pcd) {
+			result = pcd.Name
+			break
+		}
+	}
+
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!!! ", result)
+
+	return result
+
+	// var winNetDevice string
+
+	// //TODO Update the function for correct name lookup
+	// winNetDevice = networkName
+
+	// return winNetDevice
 }
 
 func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
