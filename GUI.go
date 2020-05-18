@@ -42,29 +42,28 @@ func InitGUI() {
 	inputdstIP.SetPlaceHolder(defaultConf.dstIP.String())
 
 	// destination port
-	inputPort := widget.NewEntry()
-	inputPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
+	inputdstPort := widget.NewEntry()
+	inputdstPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
 
 	// network device
-	labelNetDevice := widget.NewLabelWithStyle("    Interface :", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	selectNetDevice := widget.NewSelect(getNetworkDevices(), func(selected string) {})
-	containerNetDevice := fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		labelNetDevice, selectNetDevice)
+	selectNetDevice := widget.NewSelect(getNetworkInterfaces(), func(selected string) {})
 
-	widgetGroupConf := widget.NewGroup("Configuration", &widget.Form{
-		// Items: []*widget.FormItem{{"IP of Server", inputIP}, {"Port of Server", inputPort}, {"", widget.NewLabel("")}}, // ToDo: Remove when spacer is working
-		Items: []*widget.FormItem{{"IP of Server :", inputdstIP}, {"UDP Port :", inputPort}},
-	}, containerNetDevice)
+	// create form layout
+	widgetdstIPForm := widget.NewFormItem("IP of Server :", inputdstIP)
+	widgetdstPortForm := widget.NewFormItem("UDP Port :", inputdstPort)
+	widgetNetDevieForm := widget.NewFormItem("    Interface :", selectNetDevice)
+	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetdstIPForm, widgetdstPortForm, widgetNetDevieForm))
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	buttonPing := widget.NewButton("Ping Server", func() {
-		if (inputdstIP.Text == "") || (inputdstIP.Text == "0.0.0.0") {
+		selecteddstIP := net.ParseIP(inputdstIP.Text)
+		if (selecteddstIP == nil) || (selecteddstIP.IsUnspecified()) {
 			log.Println("The IP address is not correct. Please set a valid IP adress.")
 		} else {
-			log.Println("Start pinging server (IP: " + inputdstIP.Text + ")")
-			recieved, err := ping(inputdstIP.Text)
+			log.Println("Start pinging server (IP: " + selecteddstIP.String() + ")")
+			recieved, err := ping(selecteddstIP.String())
 			if err != nil || !recieved {
 				widgetPingStatus.SetText("NOK")
 			} else {
@@ -77,21 +76,29 @@ func InitGUI() {
 		buttonPing, widgetPingStatus))
 
 	// ---------------- Container Service Command ----------------
-	widgetTunnelServiceStat := widget.NewLabelWithStyle("Not running", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
+	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
 
-	buttonTunnelServiceStat := widget.NewButton("Start", func() {
-		port, err := strconv.Atoi(inputPort.Text)
-		if (inputdstIP.Text == "") || (inputdstIP.Text == "0.0.0.0") {
+	serviceRunning := false
+	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
+		port, err := strconv.Atoi(inputdstPort.Text)
+		selecteddstIP := net.ParseIP(inputdstIP.Text)
+		if (selecteddstIP == nil) || (selecteddstIP.IsUnspecified()) {
 			log.Println("The IP address is not correct. Please set a valid IP adress.")
 		} else if (err != nil) || (port < 1) || (port > 65535) {
 			log.Println("The UDP port is not correct. Please set a UDP valid port (1-65535).")
 		} else if selectNetDevice.Selected == "" {
 			log.Println("The selection of the network device is not set. Please select network device.")
 		} else {
-			log.Println("Start tunneling service")
-			// capture packets and forward them to the set IP address
-			capturePackets(selectNetDevice.Selected, net.ParseIP(inputdstIP.Text), port)
-			//widgetTunnelServiceStat = widget.NewLabel("Running") //ToDo : Change Status of widget
+			if !serviceRunning {
+				log.Println("Start udp broadcast tunneling service")
+				widgetTunnelServiceStat.SetText("Running")
+				go capturePackets(selectNetDevice.Selected, selecteddstIP, port)
+				serviceRunning = true
+			} else {
+				log.Println("Stop udp broadcast tunneling service")
+				widgetTunnelServiceStat.SetText("Stopped")
+				serviceRunning = false
+			}
 		}
 	})
 
@@ -114,17 +121,18 @@ func InitGUI() {
 				defaultConf := getDefaultConf()
 				//TODO find an better way for update the variables and move menu ahead
 				inputdstIP.SetText(defaultConf.dstIP.String())
-				inputPort.SetText(strconv.Itoa(defaultConf.dstPort))
+				inputdstPort.SetText(strconv.Itoa(defaultConf.dstPort))
 				//TODO not possible to go back to default choice
 				// selectProtocolTpye.SetSelected("Select one")
 				widgetPingStatus.SetText("")
+				widgetTunnelServiceStat.SetText("")
 			}),
 			fyne.NewMenuItem("Import configuration", func() {})),
 		fyne.NewMenu("Preload Configuration",
 			fyne.NewMenuItem("Warcraft 3", func() {
 				w3Conf := getWar3Conf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputPort.SetText(strconv.Itoa(w3Conf.dstPort))
+				inputdstPort.SetText(strconv.Itoa(w3Conf.dstPort))
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {

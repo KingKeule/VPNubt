@@ -12,6 +12,7 @@ import (
 	"github.com/tatsushid/go-fastping"
 )
 
+// checks whether the given ip host address can be pinged
 func ping(addr string) (bool, error) {
 
 	p := fastping.NewPinger()
@@ -41,7 +42,8 @@ func ping(addr string) (bool, error) {
 	return recieved, nil
 }
 
-func getNetworkDevices() []string {
+// get all network interfaces as string list
+func getNetworkInterfaces() []string {
 
 	// get the names from all network interfaces
 	netDeviceList, err := net.Interfaces()
@@ -51,50 +53,64 @@ func getNetworkDevices() []string {
 
 	// copy network list to a string array
 	var netDeviceListS []string
-	for _, param := range netDeviceList {
-		if !strings.Contains(param.Name, "Loopback") {
-			netDeviceListS = append(netDeviceListS, param.Name)
+	for _, iface := range netDeviceList {
+		if !strings.Contains(iface.Name, "Loopback") {
+			netDeviceListS = append(netDeviceListS, iface.Name)
 		}
 	}
 
 	return netDeviceListS
 }
 
-func anyPcapAddress(these []pcap.InterfaceAddress, other net.IP) bool {
-	if nil == other {
+//check if an ip adress from a net interface adress match to a pcap ip adress
+func comparePcapAddress(pcapAdresses []pcap.InterfaceAddress, netIPAdress net.IP) bool {
+
+	if nil == netIPAdress || nil == pcapAdresses {
 		return false
 	}
-	for _, cur := range these {
-		if cur.IP.Equal(other) {
+
+	// iterates all pacp adresses from a given pcap interface and compare it to a given ip adress
+	for _, pcapAdress := range pcapAdresses {
+		if pcapAdress.IP.Equal(netIPAdress) {
 			return true
 		}
 	}
+
 	return false
 }
 
+// check if the given pcap interface and net interface have the same ip adress
 func sameIP(netIface net.Interface, pcapIface pcap.Interface) bool {
+
+	// get all adresses from net interface
 	addrs, err := netIface.Addrs()
 	if err != nil {
 		log.Fatal(err)
 		return false
 	}
+
+	// iterates all adress from a given net interface
 	for _, addr := range addrs {
 		addrNoPort, _, _ := net.ParseCIDR(addr.String())
-		if anyPcapAddress(pcapIface.Addresses, addrNoPort) {
+		if comparePcapAddress(pcapIface.Addresses, addrNoPort) {
 			return true
 		}
 	}
 	return false
 }
 
+// this function returns the required windows network device name because the net network interface name does not work for pcap capture
 func getWindowsNetworkDeviceAddr(networkName string) string {
 
 	result := ""
 
+	// get all net interface
 	netIfaces, err := net.Interfaces()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// get the interface object for the selected network name
 	var guiSelectedInterface net.Interface
 	for _, iface := range netIfaces {
 		if iface.Name == networkName {
@@ -103,31 +119,39 @@ func getWindowsNetworkDeviceAddr(networkName string) string {
 		}
 	}
 
+	// get all pcap interfaces
 	pcapIfaces, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, pcd := range pcapIfaces {
-		if sameIP(guiSelectedInterface, pcd) {
-			result = pcd.Name
+	// iterates all pcap interfaces and check if the ip from pcap interface is the same as from the select gui
+	for _, pcapiface := range pcapIfaces {
+		if sameIP(guiSelectedInterface, pcapiface) {
+			log.Println("Match of an ip address between net interface [" + guiSelectedInterface.Name + "] and pacp interface [" + pcapiface.Description + "]")
+			result = pcapiface.Name
 			break
+		} else {
+			log.Println("No match of an ip address between net interface [" + guiSelectedInterface.Name + "] and pacp interface [" + pcapiface.Description + "]")
 		}
 	}
 
 	return result
 }
 
+// capute all udp broadcast packets on given port and network device
 func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
 
-	var snapshotLength int32 = 1024 // the maximum size to read for each packet
-	var promiscuous bool = false    // interface in promiscuous mode
+	const snapshotLength int32 = 1024 // the maximum size to read for each packet
+	const promiscuous bool = false    // interface in promiscuous mode
 
-	// Open network device
+	// create a pcap handle for given network device
 	handle, err := pcap.OpenLive(getWindowsNetworkDeviceAddr(networkDevice), snapshotLength, promiscuous, pcap.BlockForever)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// defers the pcap execution until the surrounding function (capture + forward) returns
 	defer handle.Close()
 
 	// Set pcap filter
@@ -147,6 +171,7 @@ func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
 	}
 }
 
+// send the captured broacast packet as unicast to the given ip adress
 func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
 
 	serverAddr, err := net.ResolveUDPAddr("udp4", dstIP.String()+":"+strconv.Itoa(dstPort))
@@ -158,6 +183,8 @@ func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
 	if err != nil {
 		panic(err)
 	}
+
+	// defers the udp forward execution until the surrounding function (udp connection) returns
 	defer conn.Close()
 
 	// get payload from captured packet
