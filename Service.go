@@ -45,6 +45,8 @@ func ping(addr string) (bool, error) {
 // get all network interfaces as string list
 func getNetworkInterfaces() []string {
 
+	log.Println("Search for available network interfaces")
+
 	// get the names from all network interfaces
 	netDeviceList, err := net.Interfaces()
 	if err != nil {
@@ -58,6 +60,8 @@ func getNetworkInterfaces() []string {
 			netDeviceListS = append(netDeviceListS, iface.Name)
 		}
 	}
+
+	log.Printf("Found %d network interfaces", cap(netDeviceListS))
 
 	return netDeviceListS
 }
@@ -102,6 +106,8 @@ func sameIP(netIface net.Interface, pcapIface pcap.Interface) bool {
 // this function returns the required windows network device name because the net network interface name does not work for pcap capture
 func getWindowsNetworkDeviceAddr(networkName string) string {
 
+	log.Println("Start searching for the Windows device name (required by pcap) for the selected GUI network interface [" + networkName + "] by IP address")
+
 	result := ""
 
 	// get all net interface
@@ -128,8 +134,9 @@ func getWindowsNetworkDeviceAddr(networkName string) string {
 	// iterates all pcap interfaces and check if the ip from pcap interface is the same as from the select gui
 	for _, pcapiface := range pcapIfaces {
 		if sameIP(guiSelectedInterface, pcapiface) {
-			log.Println("Match of an ip address between net interface [" + guiSelectedInterface.Name + "] and pacp interface [" + pcapiface.Description + "]")
 			result = pcapiface.Name
+			log.Println("Match of an ip address between net interface [" + guiSelectedInterface.Name + "] and pacp interface [" + pcapiface.Description + "]")
+			log.Println("The found Windows device name is: " + result)
 			break
 		} else {
 			log.Println("No match of an ip address between net interface [" + guiSelectedInterface.Name + "] and pacp interface [" + pcapiface.Description + "]")
@@ -140,7 +147,8 @@ func getWindowsNetworkDeviceAddr(networkName string) string {
 }
 
 // capute all udp broadcast packets on given port and network device
-func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
+// via the StopThreadChannel this function receives the information from the GUI to be stopped
+func capturePackets(stopThreadChannel chan bool, networkDevice string, dstIP net.IP, dstPort int) {
 
 	const snapshotLength int32 = 1024 // the maximum size to read for each packet
 	const promiscuous bool = false    // interface in promiscuous mode
@@ -163,11 +171,20 @@ func capturePackets(networkDevice string, dstIP net.IP, dstPort int) {
 	log.Println("Set pcap filter to: " + filter + ".")
 
 	// Use the handle as a packet source to process all packets
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		// forward each caputred packet
-		log.Println("Broadcast packet was captured and will be forwareded as unicast to " + dstIP.String())
-		forwardPacket(dstIP, dstPort, packet)
+	packets := gopacket.NewPacketSource(handle, handle.LinkType()).Packets()
+
+	//selection, whether to start or stop the service when the stop signal comes
+	for {
+		select {
+		case packet := <-packets:
+			// forward each captured packet
+			log.Println("Broadcast packet was captured and will be forwareded as unicast to " + dstIP.String())
+			forwardPacket(dstIP, dstPort, packet)
+		case <-stopThreadChannel:
+			log.Println("Stop tunneling signal recieved")
+			log.Println("Tunneling service stopped")
+			return
+		}
 	}
 }
 

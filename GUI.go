@@ -78,7 +78,14 @@ func InitGUI() {
 	// ---------------- Container Service Command ----------------
 	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
 
+	// create a channel to communicate the stop command to capture & forwart thread
+	stopThreadChannel := make(chan bool)
+
+	// boolean value to differentiate whether to start the tunneling service or not
 	serviceRunning := false
+
+	// button for start or stop tunneling service
+	// currently no easy way to change the name of the button. alternatively 2 buttons could be set.
 	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
 		port, err := strconv.Atoi(inputdstPort.Text)
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
@@ -90,12 +97,13 @@ func InitGUI() {
 			log.Println("The selection of the network device is not set. Please select network device.")
 		} else {
 			if !serviceRunning {
-				log.Println("Start udp broadcast tunneling service")
+				log.Println("Starting udp broadcast tunneling service")
 				widgetTunnelServiceStat.SetText("Running")
-				go capturePackets(selectNetDevice.Selected, selecteddstIP, port)
+				go capturePackets(stopThreadChannel, selectNetDevice.Selected, selecteddstIP, port)
 				serviceRunning = true
 			} else {
-				log.Println("Stop udp broadcast tunneling service")
+				log.Println("Stopping udp broadcast tunneling service")
+				stopThreadChannel <- true // Send stop signal to channel.
 				widgetTunnelServiceStat.SetText("Stopped")
 				serviceRunning = false
 			}
@@ -115,6 +123,7 @@ func InitGUI() {
 
 	w.SetContent(containerAll)
 
+	// define and add the menu to the window
 	w.SetMainMenu(fyne.NewMainMenu(
 		fyne.NewMenu("Tool",
 			fyne.NewMenuItem("Reset configuration", func() {
@@ -126,8 +135,7 @@ func InitGUI() {
 				// selectProtocolTpye.SetSelected("Select one")
 				widgetPingStatus.SetText("")
 				widgetTunnelServiceStat.SetText("")
-			}),
-			fyne.NewMenuItem("Import configuration", func() {})),
+			})),
 		fyne.NewMenu("Preload Configuration",
 			fyne.NewMenuItem("Warcraft 3", func() {
 				w3Conf := getWar3Conf()
