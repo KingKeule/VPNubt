@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"io"
 	"log"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
@@ -29,10 +26,13 @@ const gitHubLink = "https://github.com/KingKeule/VPN-broadcast-tunneler"
 //InitGUI design the GUI of the appp
 func InitGUI() {
 
+	// hide the windows console window
+	showWindowsConsole(false)
+
 	// ---------------- logging configuration ----------------
 	// set multiwriter for logging so that the log will go to os.Stderr as well as a buffer for log viewer
-	var byteBuffer bytes.Buffer
-	log.SetOutput(io.MultiWriter(os.Stderr, &byteBuffer))
+	// var byteBuffer bytes.Buffer
+	// log.SetOutput(io.MultiWriter(os.Stderr, &byteBuffer))
 
 	// disable logging completly
 	// log.SetOutput(ioutil.Discard)
@@ -165,28 +165,7 @@ func InitGUI() {
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
-
-				wLogViewer := fyne.CurrentApp().NewWindow("VPNubt Logviewer")
-				wLogViewer.Resize(fyne.NewSize(700, 400))
-				wLogViewer.CenterOnScreen()
-
-				// create a
-				logMessageList := widget.NewVBox()
-
-				// read in all log messages from the buffer and write it to a global string array
-				// because the log messages are deleted after read out (scanner.Text())
-				scanner := bufio.NewScanner(&byteBuffer)
-				for scanner.Scan() {
-					logMessages = append(logMessages, scanner.Text())
-				}
-
-				//iterate through all log messages and add a new label which is added to the fyne VBox
-				for _, logMessage := range logMessages {
-					logMessageList.Append(widget.NewLabel(logMessage))
-				}
-
-				wLogViewer.SetContent(widget.NewScrollContainer(logMessageList))
-				wLogViewer.Show()
+				showWindowsConsole(true)
 			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
@@ -235,4 +214,31 @@ func checkNetDevice(netDevice string, window fyne.Window) bool {
 		return false
 	}
 	return true
+}
+
+// https://stackoverflow.com/questions/23743217/printing-output-to-a-command-window-when-golang-application-is-compiled-with-ld/23744350
+// https://forum.golangbridge.org/t/no-println-output-with-go-build-ldflags-h-windowsgui/7633/6
+// this functions open the windows standard console window
+func showWindowsConsole(show bool) {
+
+	getConsoleWindow := syscall.NewLazyDLL("kernel32.dll").NewProc("GetConsoleWindow")
+	if getConsoleWindow.Find() != nil {
+		return
+	}
+
+	showWindow := syscall.NewLazyDLL("user32.dll").NewProc("ShowWindow")
+	if showWindow.Find() != nil {
+		return
+	}
+
+	hwnd, _, _ := getConsoleWindow.Call()
+	if hwnd == 0 {
+		return
+	}
+
+	if show {
+		showWindow.Call(hwnd, syscall.SW_RESTORE)
+	} else {
+		showWindow.Call(hwnd, syscall.SW_HIDE)
+	}
 }
