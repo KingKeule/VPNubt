@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"io"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 
@@ -17,12 +21,23 @@ var screenWidth = 280
 var screenHight = 400 // not really used because the minimum height is desired
 var containerHight = 70
 
+var logMessages []string
+
 const version = "v0.9"
 const gitHubLink = "https://github.com/KingKeule/VPN-broadcast-tunneler"
 
 //InitGUI design the GUI of the appp
 func InitGUI() {
 
+	// ---------------- logging configuration ----------------
+	// set multiwriter for logging so that the log will go to os.Stderr as well as a buffer for log viewer
+	var byteBuffer bytes.Buffer
+	log.SetOutput(io.MultiWriter(os.Stderr, &byteBuffer))
+
+	// disable logging completly
+	// log.SetOutput(ioutil.Discard)
+
+	// ---------------- App/window configuration ----------------
 	// Initialize our new fyne interface application.
 	app := app.New()
 
@@ -150,7 +165,28 @@ func InitGUI() {
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
-				//TODO Integrate Logviewer
+
+				wLogViewer := fyne.CurrentApp().NewWindow("VPNubt Logviewer")
+				wLogViewer.Resize(fyne.NewSize(700, 400))
+				wLogViewer.CenterOnScreen()
+
+				// create a
+				logMessageList := widget.NewVBox()
+
+				// read in all log messages from the buffer and write it to a global string array
+				// because the log messages are deleted after read out (scanner.Text())
+				scanner := bufio.NewScanner(&byteBuffer)
+				for scanner.Scan() {
+					logMessages = append(logMessages, scanner.Text())
+				}
+
+				//iterate through all log messages and add a new label which is added to the fyne VBox
+				for _, logMessage := range logMessages {
+					logMessageList.Append(widget.NewLabel(logMessage))
+				}
+
+				wLogViewer.SetContent(widget.NewScrollContainer(logMessageList))
+				wLogViewer.Show()
 			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
