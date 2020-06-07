@@ -18,24 +18,15 @@ var screenWidth = 280
 var screenHight = 400 // not really used because the minimum height is desired
 var containerHight = 70
 
-var logMessages []string
-
-const version = "v0.9"
-const gitHubLink = "https://github.com/KingKeule/VPN-broadcast-tunneler"
+const appname = "VPNubt"
+const version = "v1.0"
+const gitHubLink = "https://github.com/KingKeule/VPNubt"
 
 //InitGUI design the GUI of the appp
 func InitGUI() {
 
 	// hide the windows console window
 	showWindowsConsole(false)
-
-	// ---------------- logging configuration ----------------
-	// set multiwriter for logging so that the log will go to os.Stderr as well as a buffer for log viewer
-	// var byteBuffer bytes.Buffer
-	// log.SetOutput(io.MultiWriter(os.Stderr, &byteBuffer))
-
-	// disable logging completly
-	// log.SetOutput(ioutil.Discard)
 
 	// ---------------- App/window configuration ----------------
 	// Initialize our new fyne interface application.
@@ -44,8 +35,11 @@ func InitGUI() {
 	// set the theme for the app. Default is dark theme
 	//app.Settings().SetTheme(theme.LightTheme())
 
+	// set the logo iof the application
+	app.SetIcon(Logo())
+
 	// Initialize our new fyne interface application.
-	w := app.NewWindow("  VPNubt " + version)
+	w := app.NewWindow(" " + appname + " " + version)
 
 	// indicates that closing this main window should exit the app
 	w.SetMaster()
@@ -63,7 +57,7 @@ func InitGUI() {
 	// set default values for IP and Port from global config
 	defaultConf := getDefaultConf()
 
-	// destiantion IP
+	// destination IP
 	inputdstIP := widget.NewEntry()
 	inputdstIP.SetPlaceHolder(defaultConf.dstIP.String())
 
@@ -144,6 +138,7 @@ func InitGUI() {
 
 	w.SetContent(containerAll)
 
+	// ---------------- Menu ----------------
 	// define and add the menu to the window
 	w.SetMainMenu(fyne.NewMainMenu(
 		fyne.NewMenu("Tool",
@@ -156,12 +151,20 @@ func InitGUI() {
 				// selectProtocolTpye.SetSelected("Select one")
 				widgetPingStatus.SetText("")
 				widgetTunnelServiceStat.SetText("")
+				log.Println("Reset of all input and status fields")
 			})),
 		fyne.NewMenu("Game selection",
 			fyne.NewMenuItem("Warcraft 3", func() {
 				w3Conf := getWar3Conf()
 				//TODO find an better way for update the variables and move menu ahead
 				inputdstPort.SetText(strconv.Itoa(w3Conf.dstPort))
+				log.Println("Set udp port (" + strconv.Itoa(w3Conf.dstPort) + ") for selected game: Warcraft 3")
+			}),
+			fyne.NewMenuItem("CoD - UO", func() {
+				coDUOConf := getCoDUOConf()
+				//TODO find an better way for update the variables and move menu ahead
+				inputdstPort.SetText(strconv.Itoa(coDUOConf.dstPort))
+				log.Println("Set udp port (" + strconv.Itoa(coDUOConf.dstPort) + ") for selected game: Call of Duty - United Offensive")
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
@@ -170,6 +173,7 @@ func InitGUI() {
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
 				exec.Command("rundll32", "url.dll,FileProtocolHandler", gitHubLink).Start()
+				log.Println("Open github site from the project")
 			}),
 		)))
 
@@ -238,7 +242,20 @@ func showWindowsConsole(show bool) {
 
 	if show {
 		showWindow.Call(hwnd, syscall.SW_RESTORE)
+		log.Println("Windows console window is displayed")
 	} else {
 		showWindow.Call(hwnd, syscall.SW_HIDE)
+		log.Println("Windows console window is hided")
 	}
+}
+
+// Logo return the visual logo for the window icon
+// Icon source: https://icons8.de/icons/set/tunnel
+func Logo() fyne.Resource {
+	ressoruce, err := fyne.LoadResourceFromPath("img\\icons8-tunnel-24.png")
+	if err != nil {
+		log.Println("Could not find the ressource")
+		log.Fatal(err)
+	}
+	return ressoruce
 }

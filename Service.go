@@ -36,7 +36,7 @@ func ping(addr string) (bool, error) {
 
 	err = p.Run()
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 
 	return recieved, nil
@@ -50,7 +50,7 @@ func getNetworkInterfaces() []string {
 	// get the names from all network interfaces
 	netDeviceList, err := net.Interfaces()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// copy network list to a string array
@@ -178,7 +178,7 @@ func capturePackets(stopThreadChannel chan bool, networkDevice string, dstIP net
 		select {
 		case packet := <-packets:
 			// forward each captured packet
-			log.Println("Broadcast packet was captured and will be forwareded as unicast to " + dstIP.String())
+			log.Println("UDP broadcast packet was captured and will be forwareded as udp unicast to " + dstIP.String())
 			forwardPacket(dstIP, dstPort, packet)
 		case <-stopThreadChannel:
 			log.Println("Stop tunneling signal recieved")
@@ -193,12 +193,12 @@ func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
 
 	serverAddr, err := net.ResolveUDPAddr("udp4", dstIP.String()+":"+strconv.Itoa(dstPort))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	conn, err := net.ListenPacket("udp", ":"+strconv.Itoa(dstPort))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// defers the udp forward execution until the surrounding function (udp connection) returns
@@ -210,8 +210,9 @@ func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
 	// send new unicast packet to server
 	_, err = conn.WriteTo(data, serverAddr)
 	if err != nil {
+		log.Println("Packet was not successfully forwarded as udp unicast to: " + dstIP.String())
 		log.Fatal(err)
 	} else {
-		log.Println("Packet was successfully forwarded as unicast to: " + dstIP.String())
+		log.Println("Packet was successfully forwarded as udp unicast to: " + dstIP.String())
 	}
 }

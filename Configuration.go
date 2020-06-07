@@ -20,3 +20,8 @@ func getWar3Conf() *config {
 	config := config{nil, nil, 6112, 6112}
 	return &config
 }
+
+func getCoDUOConf() *config {
+	config := config{nil, nil, 28960, 28960}
+	return &config
+}
