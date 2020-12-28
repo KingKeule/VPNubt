@@ -4,7 +4,6 @@ import (
 	"log"
 	"net"
 	"os/exec"
-	"strconv"
 	"syscall"
 
 	"fyne.io/fyne"
@@ -55,30 +54,46 @@ func InitGUI() {
 
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
-	defaultConf := getDefaultConf()
+	currentConfig = newDefaultConf()
 
 	// destination IP
-	inputdstIP := widget.NewEntry()
-	inputdstIP.SetPlaceHolder(defaultConf.dstIP.String())
+	inputDstIPs := widget.NewEntry()
+	inputDstIPs.SetText("10.0.0.1-10")
+	inputDstIPs.Disable() // TODO editable somehow useful
 
 	// destination port
-	inputdstPort := widget.NewEntry()
-	inputdstPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
+	inputDstPorts := widget.NewEntry()
+	inputDstPorts.SetText(currentConfig.gamePorts2StringList())
+	inputDstPorts.Disable() // TODO editable somehow useful
+
+	err := autoSelectNetworkInterface()
+	if err != nil {
+		dialog.ShowInformation("Uuups", "Unable to detect your network settings", w)
+		app.Quit()
+	}
 
 	// network device
-	selectNetDevice := widget.NewSelect(getNetworkInterfaces(), func(selected string) {})
+	networkDevice := widget.NewEntry()
+	networkDevice.SetText(currentConfig.winDevName)
+	networkDevice.Disable() // TODO editable somehow useful
 
 	// create form layout
-	widgetdstIPForm := widget.NewFormItem("IP of Server :", inputdstIP)
-	widgetdstPortForm := widget.NewFormItem("UDP Port :", inputdstPort)
-	widgetNetDevieForm := widget.NewFormItem("    Interface :", selectNetDevice)
-	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetdstIPForm, widgetdstPortForm, widgetNetDevieForm))
+	widgetdstIPForm := widget.NewFormItem("Game Server(s) :", inputDstIPs)
+	widgetdstPortForm := widget.NewFormItem("UDP Port(s) :", inputDstPorts)
+	widgetNetDeviceForm := widget.NewFormItem("Broadcast-Interface :", networkDevice)
+	widgetGroupConf := widget.NewGroup(
+		"Configuration",
+		widget.NewForm(
+			widgetdstIPForm,
+			widgetdstPortForm,
+			widgetNetDeviceForm,
+		))
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	buttonPing := widget.NewButton("Ping Server", func() {
-		selecteddstIP := net.ParseIP(inputdstIP.Text)
+		selecteddstIP := net.ParseIP(inputDstIPs.Text)
 		if !checkIPAdress(selecteddstIP, w) {
 		} else {
 			log.Println("Start pinging server (IP: " + selecteddstIP.String() + ")")
@@ -100,32 +115,26 @@ func InitGUI() {
 	// create a channel to communicate the stop command to capture & forwart thread
 	stopThreadChannel := make(chan bool)
 
-	// boolean value to differentiate whether to start the tunneling service or not
+	// boolean value to differentiate whether to start the service or not
 	serviceRunning := false
 
-	// button for start or stop tunneling service
+	// button for start or stop service
 	// currently no easy way to change the name of the button. alternatively 2 buttons could be set.
 	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
-		port, err := strconv.Atoi(inputdstPort.Text)
-		selecteddstIP := net.ParseIP(inputdstIP.Text)
-
-		if !checkIPAdress(selecteddstIP, w) {
-		} else if !checkPort(err, port, w) {
-		} else if !checkNetDevice(selectNetDevice.Selected, w) {
-		} else if !serviceRunning {
-			log.Println("Starting udp broadcast tunneling service")
+		if !serviceRunning {
+			log.Println("Starting udp broadcast2unicast service")
 			widgetTunnelServiceStat.SetText("Running")
-			go capturePackets(stopThreadChannel, selectNetDevice.Selected, selecteddstIP, port)
+			go capturePackets(stopThreadChannel)
 			serviceRunning = true
 		} else {
-			log.Println("Stopping udp broadcast tunneling service")
+			log.Println("Stopping udp broadcast2unicast service")
 			stopThreadChannel <- true // Send stop signal to channel.
 			widgetTunnelServiceStat.SetText("Stopped")
 			serviceRunning = false
 		}
 	})
 
-	widgetGroupTunnelService := widget.NewGroup("Tunnelling Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
+	widgetGroupTunnelService := widget.NewGroup("broadcast2unicast Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
 		buttonTunnelServiceStat, widgetTunnelServiceStat))
 
 	// ---------------- Container complete ----------------
@@ -141,31 +150,18 @@ func InitGUI() {
 	// ---------------- Menu ----------------
 	// define and add the menu to the window
 	w.SetMainMenu(fyne.NewMainMenu(
-		fyne.NewMenu("Tool",
-			fyne.NewMenuItem("Reset configuration", func() {
-				defaultConf := getDefaultConf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputdstIP.SetText(defaultConf.dstIP.String())
-				inputdstPort.SetText(strconv.Itoa(defaultConf.dstPort))
-				//TODO not possible to go back to default choice
-				// selectProtocolTpye.SetSelected("Select one")
-				widgetPingStatus.SetText("")
-				widgetTunnelServiceStat.SetText("")
-				log.Println("Reset of all input and status fields")
-			})),
-		fyne.NewMenu("Game selection",
-			fyne.NewMenuItem("Warcraft 3", func() {
-				w3Conf := getWar3Conf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(w3Conf.dstPort))
-				log.Println("Set udp port (" + strconv.Itoa(w3Conf.dstPort) + ") for selected game: Warcraft 3")
-			}),
-			fyne.NewMenuItem("CoD - UO", func() {
-				coDUOConf := getCoDUOConf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(coDUOConf.dstPort))
-				log.Println("Set udp port (" + strconv.Itoa(coDUOConf.dstPort) + ") for selected game: Call of Duty - United Offensive")
-			})),
+		// fyne.NewMenu("Tool",
+		// 	fyne.NewMenuItem("Reset configuration", func() {
+		// 		defaultConf := newDefaultConf()
+		// 		//TODO find an better way for update the variables and move menu ahead
+		// 		inputDstIPs.SetText("10.0.0.1-10")
+		// 		inputDstPorts.SetText(currentConfig.gamePorts2StringList())
+		// 		//TODO not possible to go back to default choice
+		// 		// selectProtocolTpye.SetSelected("Select one")
+		// 		widgetPingStatus.SetText("")
+		// 		widgetTunnelServiceStat.SetText("")
+		// 		log.Println("Reset of all input and status fields")
+		// 	})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
 				showWindowsConsole(true)
