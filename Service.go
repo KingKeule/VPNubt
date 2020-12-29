@@ -212,7 +212,7 @@ func capturePackets(stopThreadChannel chan bool) {
 
 	fmt.Fprintf(&filterBuild, "src host %s", currentConfig.srcIP)
 	fmt.Fprint(&filterBuild, " and ip broadcast")
-	fmt.Fprint(&filterBuild, " and (udp port")
+	fmt.Fprint(&filterBuild, " and (udp dst port")
 	for i, gp := range currentConfig.gamePorts {
 		fmt.Fprintf(&filterBuild, " %d", gp)
 		if i != len(currentConfig.gamePorts)-1 {
@@ -231,12 +231,10 @@ func capturePackets(stopThreadChannel chan bool) {
 	// Use the handle as a packet source to process all packets
 	packets := gopacket.NewPacketSource(handle, handle.LinkType()).Packets()
 
-	//selection, whether to start or stop the service when the stop signal comes
 	for {
 		select {
 		case packet := <-packets:
-			// forward each captured packet
-			log.Println("UDP broadcast packet was captured and will be forwarded as udp unicast")
+			log.Println("Got Packet!")
 			forwardPacket(packet)
 		case <-stopThreadChannel:
 			log.Println("Stop signal recieved")
@@ -245,8 +243,17 @@ func capturePackets(stopThreadChannel chan bool) {
 	}
 }
 
-// send the captured broacast packet as unicast to the given ip adress
+// send the captured broacast packet as unicast to all configured game server IPs
 func forwardPacket(packet gopacket.Packet) {
+
+	ip4Layer := packet.Layer(layers.LayerTypeIPv4)
+	if ip4Layer == nil {
+		log.Fatalf("Unable to get IP Layer of a Packet captured with IP Filter?!")
+		return
+	}
+	ip4, _ := ip4Layer.(*layers.IPv4)
+	srcIP := ip4.SrcIP
+	dstIP := ip4.DstIP
 
 	udpLayer := packet.Layer(layers.LayerTypeUDP)
 	if udpLayer == nil {
@@ -254,35 +261,34 @@ func forwardPacket(packet gopacket.Packet) {
 		return
 	}
 	udp, _ := udpLayer.(*layers.UDP)
+	srcPort := udp.SrcPort
 	dstPort := udp.DstPort
+
+	log.Printf("%s:%d -> %s:%d\n", srcIP.String(), srcPort, dstIP.String(), dstPort)
+
+	// new connection WITHOUT binding to a socket
+	expr := fmt.Sprintf(":%d", dstPort)
+	conn, err := net.ListenPacket("udp", expr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
 
 	for _, gameServerIP := range currentConfig.gameServer {
 
-		expr := fmt.Sprintf("%s:%d", gameServerIP.String(), dstPort)
+		expr = fmt.Sprintf("%s:%d", gameServerIP.String(), dstPort)
 		serverAddr, err := net.ResolveUDPAddr("udp4", expr)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		expr = fmt.Sprintf(":%d", dstPort)
-		conn, err := net.ListenPacket("udp", expr)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// defers the udp forward execution until the surrounding function (udp connection) returns
-		defer conn.Close()
-
-		// get payload from captured packet
-		data := packet.ApplicationLayer().Payload()
-
 		// send new unicast packet to server
+		data := packet.ApplicationLayer().Payload()
 		_, err = conn.WriteTo(data, serverAddr)
 		if err != nil {
-			log.Println("Packet was not successfully forwarded as udp unicast to: " + gameServerIP.String())
 			log.Fatal(err)
 		} else {
-			log.Println("Packet was successfully forwarded as udp unicast to: " + gameServerIP.String())
+			log.Printf("... and forwarded -> %s:%d\n", gameServerIP.String(), dstPort)
 		}
 	}
 }
