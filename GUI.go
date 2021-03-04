@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"log"
 	"net"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/dialog"
 	"fyne.io/fyne/layout"
+	"fyne.io/fyne/theme"
 	"fyne.io/fyne/widget"
 )
 
@@ -33,7 +35,7 @@ func InitGUI() {
 	app := app.New()
 
 	// set the theme for the app. Default is dark theme
-	//app.Settings().SetTheme(theme.LightTheme())
+	app.Settings().SetTheme(theme.DarkTheme())
 
 	// set the logo iof the application
 	app.SetIcon(Logo())
@@ -224,7 +226,6 @@ func checkNetDevice(netDevice string, window fyne.Window) bool {
 // https://forum.golangbridge.org/t/no-println-output-with-go-build-ldflags-h-windowsgui/7633/6
 // this functions open the windows standard console window
 func showWindowsConsole(show bool) {
-
 	getConsoleWindow := syscall.NewLazyDLL("kernel32.dll").NewProc("GetConsoleWindow")
 	if getConsoleWindow.Find() != nil {
 		return
@@ -249,13 +250,14 @@ func showWindowsConsole(show bool) {
 	}
 }
 
+//go:embed img\\icons8-tunnel-24.png
+var iconBytes []byte
+
 // Logo return the visual logo for the window icon
 // Icon source: https://icons8.de/icons/set/tunnel
 func Logo() fyne.Resource {
-	ressoruce, err := fyne.LoadResourceFromPath("img\\icons8-tunnel-24.png")
-	if err != nil {
-		log.Println("Could not find the ressource")
-		log.Fatal(err)
-	}
-	return ressoruce
+	icon := &fyne.StaticResource{
+		StaticName:    "icons8-tunnel-24.png",
+		StaticContent: iconBytes}
+	return icon
 }
