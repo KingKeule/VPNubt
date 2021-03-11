@@ -61,7 +61,10 @@ func getNetworkInterfaces() []string {
 		}
 	}
 
-	log.Printf("Found %d network interfaces", cap(netDeviceListS))
+	log.Printf("Found %d network interfaces:", cap(netDeviceListS))
+	for _, netDevice := range netDeviceListS {
+		log.Printf("- %s", netDevice)
+	}
 
 	return netDeviceListS
 }
@@ -215,4 +218,23 @@ func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
 	} else {
 		log.Println("Packet was successfully forwarded as udp unicast to: " + dstIP.String())
 	}
+}
+
+// checks whether Pcap is correctly installed and available on the windows system.
+func isPcapSetupCorrect() bool {
+	log.Printf("Try to load Pcap libraries and search for Pcap devices")
+
+	pcapIfaces, err := pcap.FindAllDevs()
+	if err != nil {
+		log.Printf("Pcap could not be loaded (%s)", err)
+		return false
+	}
+	if pcapIfaces == nil {
+		log.Print("No Pcap device was found. Maybe Pcap is not installed correct.")
+		return false
+	}
+	log.Printf("Pcap was loaded correctly (%s)", pcap.Version())
+	log.Printf("Number of available Pcap devices: %d", cap(pcapIfaces))
+
+	return true
 }

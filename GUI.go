@@ -23,6 +23,7 @@ var containerHight = 70
 const appname = "VPNubt"
 const version = "v1.0"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
+const winPcapLink = "https://www.winpcap.org/default.htm"
 
 //InitGUI design the GUI of the appp
 func InitGUI() {
@@ -111,7 +112,8 @@ func InitGUI() {
 		port, err := strconv.Atoi(inputdstPort.Text)
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
 
-		if !checkIPAdress(selecteddstIP, w) {
+		if !checkPcap(w) {
+		} else if !checkIPAdress(selecteddstIP, w) {
 		} else if !checkPort(err, port, w) {
 		} else if !checkNetDevice(selectNetDevice.Selected, w) {
 		} else if !serviceRunning {
@@ -172,6 +174,11 @@ func InitGUI() {
 			fyne.NewMenuItem("Show Log", func() {
 				showWindowsConsole(true)
 			}),
+			fyne.NewMenuItem("WinPcap", func() {
+				// windows command to open the browser with the given link
+				exec.Command("rundll32", "url.dll,FileProtocolHandler", winPcapLink).Start()
+				log.Println("Open WinPcap site")
+			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
 				exec.Command("rundll32", "url.dll,FileProtocolHandler", gitHubLink).Start()
@@ -217,6 +224,19 @@ func checkNetDevice(netDevice string, window fyne.Window) bool {
 		netDevWarnText2 := "Please select network device."
 		log.Println(netDevWarnText1 + " " + netDevWarnText2)
 		dialog.ShowInformation("", netDevWarnText1+"\n"+netDevWarnText2, window)
+		return false
+	}
+	return true
+}
+
+// checks whether Pcap is installed an available
+// if not then an error message is displayed on the given window
+func checkPcap(window fyne.Window) bool {
+	if isPcapSetupCorrect() == false {
+		PcapWarnText1 := "Problem with Pcap."
+		PcapWarnText2 := "Please check Pcap installation."
+		PcapWarnText3 := "See log for more details."
+		dialog.ShowInformation("", PcapWarnText1+"\n"+PcapWarnText2+"\n"+PcapWarnText3, window)
 		return false
 	}
 	return true
