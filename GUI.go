@@ -21,9 +21,9 @@ var screenHight = 400 // not really used because the minimum height is desired
 var containerHight = 70
 
 const appname = "VPNubt"
-const version = "v1.0"
+const version = "v1.1"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
-const winPcapLink = "https://www.winpcap.org/default.htm"
+const npcapLink = "https://nmap.org/npcap/"
 
 //InitGUI design the GUI of the appp
 func InitGUI() {
@@ -42,16 +42,16 @@ func InitGUI() {
 	app.SetIcon(Logo())
 
 	// Initialize our new fyne interface application.
-	w := app.NewWindow(" " + appname + " " + version)
+	window := app.NewWindow(" " + appname + " " + version)
 
 	// indicates that closing this main window should exit the app
-	w.SetMaster()
+	window.SetMaster()
 
 	// center the windows on the screen
-	w.CenterOnScreen()
+	window.CenterOnScreen()
 
 	// do not allow to resize the window
-	w.SetFixedSize(true)
+	window.SetFixedSize(true)
 
 	// Set a sane default for the window size.
 	// w.Resize(fyne.NewSize(screenWidth, screenHight))
@@ -82,7 +82,7 @@ func InitGUI() {
 
 	buttonPing := widget.NewButton("Ping Server", func() {
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
-		if !checkIPAdress(selecteddstIP, w) {
+		if !checkIPAdress(selecteddstIP, window) {
 		} else {
 			log.Println("Start pinging server (IP: " + selecteddstIP.String() + ")")
 			recieved, err := ping(selecteddstIP.String())
@@ -112,10 +112,10 @@ func InitGUI() {
 		port, err := strconv.Atoi(inputdstPort.Text)
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
 
-		if !checkPcap(w) {
-		} else if !checkIPAdress(selecteddstIP, w) {
-		} else if !checkPort(err, port, w) {
-		} else if !checkNetDevice(selectNetDevice.Selected, w) {
+		if !checkPcap(window) {
+		} else if !checkIPAdress(selecteddstIP, window) {
+		} else if !checkPort(err, port, window) {
+		} else if !checkNetDevice(selectNetDevice.Selected, window) {
 		} else if !serviceRunning {
 			log.Println("Starting udp broadcast tunneling service")
 			widgetTunnelServiceStat.SetText("Running")
@@ -140,11 +140,11 @@ func InitGUI() {
 			widgetGroupPing,
 			widgetGroupTunnelService))
 
-	w.SetContent(containerAll)
+	window.SetContent(containerAll)
 
 	// ---------------- Menu ----------------
 	// define and add the menu to the window
-	w.SetMainMenu(fyne.NewMainMenu(
+	window.SetMainMenu(fyne.NewMainMenu(
 		fyne.NewMenu("Tool",
 			fyne.NewMenuItem("Reset configuration", func() {
 				defaultConf := getDefaultConf()
@@ -174,10 +174,10 @@ func InitGUI() {
 			fyne.NewMenuItem("Show Log", func() {
 				showWindowsConsole(true)
 			}),
-			fyne.NewMenuItem("WinPcap", func() {
+			fyne.NewMenuItem("Npcap", func() {
 				// windows command to open the browser with the given link
-				exec.Command("rundll32", "url.dll,FileProtocolHandler", winPcapLink).Start()
-				log.Println("Open WinPcap site")
+				exec.Command("rundll32", "url.dll,FileProtocolHandler", npcapLink).Start()
+				log.Println("Open Npcap site")
 			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
@@ -187,7 +187,7 @@ func InitGUI() {
 		)))
 
 	// Show all of our set content and run the gui.
-	w.ShowAndRun()
+	window.ShowAndRun()
 }
 
 // checks whether the given string is a valid IP address
