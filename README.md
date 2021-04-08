@@ -1,5 +1,5 @@
 # VPNubt (VPN-udp-broadcast-tunneler)
-Our tool "copies" udp broadcasts on the selected port to udp unicasts which are sent to the specific IP adress to bypass the VPN router barrier.
+Our tool "copies" udp broadcasts on the selected port to udp unicasts which are sent to the specific IP address to bypass the VPN router barrier.
 
 ## Background
 We love to play old school games like Warcraft 3 with friends. 
