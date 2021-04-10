@@ -18,7 +18,6 @@ import (
 
 var screenWidth = 280
 var screenHight = 400 // not really used because the minimum height is desired
-var containerHight = 70
 
 const appname = "VPNubt"
 const version = "v1.2"
@@ -51,9 +50,6 @@ func InitGUI() {
 
 	// do not allow to resize the window
 	window.SetFixedSize(true)
-
-	// Set a sane default for the window size.
-	//window.Resize(fyne.NewSize(screenWidth, screenHight))
 
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
@@ -126,14 +122,14 @@ func InitGUI() {
 		buttonTunnelServiceStat, widgetTunnelServiceStat))
 
 	// ---------------- Container complete ----------------
-	containerAll := fyne.NewContainerWithLayout(layout.NewGridLayout(1),
+	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
 		widgetGroupConf,
-		//FixedGridLayout required cause GridLayout divides the space equally for all cells
-		fyne.NewContainerWithLayout(layout.NewFixedGridLayout(fyne.NewSize(screenWidth, containerHight)),
-			widgetGroupPing,
-			widgetGroupTunnelService))
-
+		widgetGroupPing,
+		widgetGroupTunnelService)
 	window.SetContent(containerAll)
+
+	// // Resize only in width due the menü width and take the actual height of the window
+	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height))
 
 	// ---------------- Menu ----------------
 	// define and add the menu to the window
