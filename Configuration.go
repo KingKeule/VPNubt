@@ -1,27 +1,22 @@
 package main
 
-import (
-	"net"
-)
-
-type config struct {
-	srcIP   net.IP
-	dstIP   net.IP
-	srcPort int
-	dstPort int
+// Varaible fields name must start with capital letters to be JSON exported. "dstIP" is not possbile.
+type Config struct {
+	DstIP   string `json:"IP"`
+	SrcPort int    `json:"Port"`
 }
 
-func getDefaultConf() *config {
-	config := config{net.IPv4(0, 0, 0, 0), net.IPv4(0, 0, 0, 0), 0, 0}
+func getDefaultConf() *Config {
+	config := Config{"0.0.0.0", 0}
 	return &config
 }
 
-func getWar3Conf() *config {
-	config := config{nil, nil, 6112, 6112}
+func getWar3Conf() *Config {
+	config := Config{"", 6112}
 	return &config
 }
 
-func getCoDUOConf() *config {
-	config := config{nil, nil, 28960, 28960}
+func getCoDUOConf() *Config {
+	config := Config{"", 28960}
 	return &config
 }

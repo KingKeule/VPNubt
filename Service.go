@@ -40,7 +40,7 @@ func ping(addr string) (bool, error) {
 	return recieved, nil
 }
 
-// capture all udp broadcast packets on given port and forward them to the given destination ip adress
+// capture all udp broadcast packets on given port and forward them to the given destination ip address
 // via the StopThreadChannel this function receives the information from the GUI to be stopped
 func captureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int) {
 	//selection, whether to start or stop the service when the stop signal comes
@@ -54,19 +54,19 @@ func captureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 
 	// create an udp socket
 	log.Printf("Listen on UDP port: %d", port)
-	conn, err := net.ListenUDP("udp", srcAddr) // code does not block here
+	conn, err := net.ListenUDP("udp", srcAddr)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
-	buf := make([]byte, 512) // better than var buf [512]byte?
 
 	go func() {
 		defer func() {
 			conn.Close()
 			log.Println("UDP socket closed")
 		}()
+
+		buf := make([]byte, 512)
 
 		for {
 			select {
@@ -84,7 +84,7 @@ func captureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 				}
 				//log.Printf("UDP connection timeout is set to %s. Timeouts are not logged.", timeout)
 
-				//listen abnd read on given udp port
+				//read packet on given udp port
 				rlen, _, err := conn.ReadFromUDP(buf[:])
 				if err != nil && !strings.Contains(err.Error(), "timeout") {
 					log.Println(err)
@@ -102,8 +102,9 @@ func captureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 					_, err := conn.WriteTo(buf[0:rlen], &dstAddr)
 					if err != nil {
 						log.Println(err)
+					} else {
+						log.Printf("UDP packet was successfully forwarded to %s.", dstIP.String())
 					}
-					log.Printf("UDP packet was successfully forwarded to %s.", dstIP.String())
 				}
 			}
 		}

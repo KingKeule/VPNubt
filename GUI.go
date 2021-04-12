@@ -2,6 +2,8 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net"
 	"os/exec"
@@ -22,8 +24,9 @@ var screenHight = 400 // not really used because the minimum height is desired
 const appname = "VPNubt"
 const version = "v1.2"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
+const configFileName = "VPNubt.config"
 
-//InitGUI design the GUI of the appp
+//Initialization of the GUI
 func InitGUI() {
 
 	// hide the windows console window
@@ -36,7 +39,7 @@ func InitGUI() {
 	// set the theme for the app. Default is dark theme
 	app.Settings().SetTheme(theme.DarkTheme())
 
-	// set the logo iof the application
+	// set the logo of the application
 	app.SetIcon(Logo())
 
 	// Initialize our new fyne interface application.
@@ -53,15 +56,15 @@ func InitGUI() {
 
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
-	defaultConf := getDefaultConf()
+	conf := checkForConfig()
 
 	// destination IP
 	inputdstIP := widget.NewEntry()
-	inputdstIP.SetPlaceHolder(defaultConf.dstIP.String())
+	inputdstIP.Text = conf.DstIP
 
 	// destination port
 	inputdstPort := widget.NewEntry()
-	inputdstPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
+	inputdstPort.Text = strconv.Itoa(conf.SrcPort)
 
 	// create form layout
 	widgetdstIPForm := widget.NewFormItem("IP of Server :", inputdstIP)
@@ -73,7 +76,7 @@ func InitGUI() {
 
 	buttonPing := widget.NewButton("Ping Server", func() {
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
-		if !checkIPAdress(selecteddstIP, window) {
+		if !checkIPAddress(selecteddstIP, window) {
 		} else {
 			log.Println("Start pinging server (IP: " + selecteddstIP.String() + ")")
 			recieved, err := ping(selecteddstIP.String())
@@ -103,7 +106,7 @@ func InitGUI() {
 		port, err := strconv.Atoi(inputdstPort.Text)
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
 
-		if !checkIPAdress(selecteddstIP, window) {
+		if !checkIPAddress(selecteddstIP, window) {
 		} else if !checkPort(err, port, window) {
 		} else if !serviceRunning {
 			log.Println("Starting udp broadcast tunneling service")
@@ -138,26 +141,33 @@ func InitGUI() {
 			fyne.NewMenuItem("Reset configuration", func() {
 				defaultConf := getDefaultConf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstIP.SetText(defaultConf.dstIP.String())
-				inputdstPort.SetText(strconv.Itoa(defaultConf.dstPort))
-				//TODO not possible to go back to default choice
-				// selectProtocolTpye.SetSelected("Select one")
+				inputdstIP.SetText(defaultConf.DstIP)
+				inputdstPort.SetText(strconv.Itoa(defaultConf.SrcPort))
 				widgetPingStatus.SetText("")
 				widgetTunnelServiceStat.SetText("")
 				log.Println("Reset of all input and status fields")
+			}),
+			fyne.NewMenuItem("Save configuration", func() {
+				port, err := strconv.Atoi(inputdstPort.Text)
+				selecteddstIP := net.ParseIP(inputdstIP.Text)
+				if checkIPAddress(selecteddstIP, window) {
+					if checkPort(err, port, window) {
+						writeConfigToFile(inputdstIP.Text, port, window)
+					}
+				}
 			})),
 		fyne.NewMenu("Game selection",
 			fyne.NewMenuItem("Warcraft 3", func() {
 				w3Conf := getWar3Conf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(w3Conf.dstPort))
-				log.Println("Set udp port (" + strconv.Itoa(w3Conf.dstPort) + ") for selected game: Warcraft 3")
+				inputdstPort.SetText(strconv.Itoa(w3Conf.SrcPort))
+				log.Println("Set udp port (" + strconv.Itoa(w3Conf.SrcPort) + ") for selected game: Warcraft 3")
 			}),
 			fyne.NewMenuItem("CoD - UO", func() {
 				coDUOConf := getCoDUOConf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(coDUOConf.dstPort))
-				log.Println("Set udp port (" + strconv.Itoa(coDUOConf.dstPort) + ") for selected game: Call of Duty - United Offensive")
+				inputdstPort.SetText(strconv.Itoa(coDUOConf.SrcPort))
+				log.Println("Set udp port (" + strconv.Itoa(coDUOConf.SrcPort) + ") for selected game: Call of Duty - United Offensive")
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
@@ -176,10 +186,10 @@ func InitGUI() {
 
 // checks whether the given string is a valid IP address
 // if not then an error message is displayed on the given window
-func checkIPAdress(ip net.IP, window fyne.Window) bool {
+func checkIPAddress(ip net.IP, window fyne.Window) bool {
 	if (ip == nil) || (ip.IsUnspecified()) {
 		ipWarnText1 := "The entered IP address is not correct."
-		ipWarnText2 := "Please set a valid IP adress."
+		ipWarnText2 := "Please set a valid IP address."
 		log.Println(ipWarnText1 + " " + ipWarnText2)
 		dialog.ShowInformation("", ipWarnText1+"\n"+ipWarnText2, window)
 		return false
@@ -225,6 +235,43 @@ func showWindowsConsole(show bool) {
 	} else {
 		showWindow.Call(hwnd, syscall.SW_HIDE)
 		log.Println("Windows console window is hided")
+	}
+}
+
+// write the current given IP address and udp port to file
+func writeConfigToFile(inputdstIP string, inputsrcPort int, window fyne.Window) {
+	log.Println("Try to write actual IP address and udp port to a config file in the workspace")
+
+	actConfig := Config{inputdstIP, inputsrcPort}
+
+	//marshal (pretty) to json structure
+	jsonConfigData, err := json.MarshalIndent(actConfig, "", "  ")
+
+	err = ioutil.WriteFile(configFileName, jsonConfigData, 0644)
+	if err != nil {
+		log.Println(err)
+		dialog.ShowInformation("", "Error while saving.\n See log for more details", window)
+	} else {
+		log.Println("Configuration file (VPNubt.config) was saved successfully.")
+		dialog.ShowInformation("", "Configuration file (VPNubt.config)\n was saved successfully ", window)
+	}
+}
+
+func checkForConfig() *Config {
+	configFileBytes, err := ioutil.ReadFile(configFileName)
+	if err != nil {
+		log.Printf("No config file (%s) was found in the working directory. Using no config.", configFileName)
+		return getDefaultConf()
+	} else {
+		log.Printf("Config file (%s) was found in the working directory and will be imported.", configFileName)
+		var config Config
+		err = json.Unmarshal([]byte(configFileBytes), &config)
+		if err != nil {
+			log.Printf("Error while marshalling config file. %s.", err)
+			return getDefaultConf()
+		} else {
+			return &config
+		}
 	}
 }
 
