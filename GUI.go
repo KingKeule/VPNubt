@@ -18,12 +18,10 @@ import (
 
 var screenWidth = 280
 var screenHight = 400 // not really used because the minimum height is desired
-var containerHight = 70
 
 const appname = "VPNubt"
-const version = "v1.1"
+const version = "v1.2"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
-const npcapLink = "https://nmap.org/npcap/"
 
 //InitGUI design the GUI of the appp
 func InitGUI() {
@@ -53,9 +51,6 @@ func InitGUI() {
 	// do not allow to resize the window
 	window.SetFixedSize(true)
 
-	// Set a sane default for the window size.
-	// w.Resize(fyne.NewSize(screenWidth, screenHight))
-
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
 	defaultConf := getDefaultConf()
@@ -68,14 +63,10 @@ func InitGUI() {
 	inputdstPort := widget.NewEntry()
 	inputdstPort.SetPlaceHolder(strconv.Itoa(defaultConf.dstPort))
 
-	// network device
-	selectNetDevice := widget.NewSelect(getNetworkInterfaces(), func(selected string) {})
-
 	// create form layout
 	widgetdstIPForm := widget.NewFormItem("IP of Server :", inputdstIP)
 	widgetdstPortForm := widget.NewFormItem("UDP Port :", inputdstPort)
-	widgetNetDevieForm := widget.NewFormItem("    Interface :", selectNetDevice)
-	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetdstIPForm, widgetdstPortForm, widgetNetDevieForm))
+	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetdstIPForm, widgetdstPortForm))
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
@@ -112,14 +103,12 @@ func InitGUI() {
 		port, err := strconv.Atoi(inputdstPort.Text)
 		selecteddstIP := net.ParseIP(inputdstIP.Text)
 
-		if !checkPcap(window) {
-		} else if !checkIPAdress(selecteddstIP, window) {
+		if !checkIPAdress(selecteddstIP, window) {
 		} else if !checkPort(err, port, window) {
-		} else if !checkNetDevice(selectNetDevice.Selected, window) {
 		} else if !serviceRunning {
 			log.Println("Starting udp broadcast tunneling service")
 			widgetTunnelServiceStat.SetText("Running")
-			go capturePackets(stopThreadChannel, selectNetDevice.Selected, selecteddstIP, port)
+			captureAndForwardPacket(stopThreadChannel, selecteddstIP, port)
 			serviceRunning = true
 		} else {
 			log.Println("Stopping udp broadcast tunneling service")
@@ -133,14 +122,14 @@ func InitGUI() {
 		buttonTunnelServiceStat, widgetTunnelServiceStat))
 
 	// ---------------- Container complete ----------------
-	containerAll := fyne.NewContainerWithLayout(layout.NewGridLayout(1),
+	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
 		widgetGroupConf,
-		//FixedGridLayout required cause GridLayout divides the space equally for all cells
-		fyne.NewContainerWithLayout(layout.NewFixedGridLayout(fyne.NewSize(screenWidth, containerHight)),
-			widgetGroupPing,
-			widgetGroupTunnelService))
-
+		widgetGroupPing,
+		widgetGroupTunnelService)
 	window.SetContent(containerAll)
+
+	// // Resize only in width due the menü width and take the actual height of the window
+	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height))
 
 	// ---------------- Menu ----------------
 	// define and add the menu to the window
@@ -174,11 +163,6 @@ func InitGUI() {
 			fyne.NewMenuItem("Show Log", func() {
 				showWindowsConsole(true)
 			}),
-			fyne.NewMenuItem("Npcap", func() {
-				// windows command to open the browser with the given link
-				exec.Command("rundll32", "url.dll,FileProtocolHandler", npcapLink).Start()
-				log.Println("Open Npcap site")
-			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
 				exec.Command("rundll32", "url.dll,FileProtocolHandler", gitHubLink).Start()
@@ -208,35 +192,9 @@ func checkIPAdress(ip net.IP, window fyne.Window) bool {
 func checkPort(err error, port int, window fyne.Window) bool {
 	if (err != nil) || (port < 1) || (port > 65535) {
 		portWarnText1 := "The entered UDP port is not correct."
-		portWarnText2 := "Please set a UDP valid port (1-65535)."
+		portWarnText2 := "Please set a valid UDP port (1-65535)."
 		log.Println(portWarnText1 + " " + portWarnText2)
 		dialog.ShowInformation("", portWarnText1+"\n"+portWarnText2, window)
-		return false
-	}
-	return true
-}
-
-// checks whether a network device is selected
-// if not then an error message is displayed on the given window
-func checkNetDevice(netDevice string, window fyne.Window) bool {
-	if netDevice == "" {
-		netDevWarnText1 := "The network device is not set."
-		netDevWarnText2 := "Please select network device."
-		log.Println(netDevWarnText1 + " " + netDevWarnText2)
-		dialog.ShowInformation("", netDevWarnText1+"\n"+netDevWarnText2, window)
-		return false
-	}
-	return true
-}
-
-// checks whether Pcap is installed an available
-// if not then an error message is displayed on the given window
-func checkPcap(window fyne.Window) bool {
-	if isPcapSetupCorrect() == false {
-		PcapWarnText1 := "Problem with Pcap."
-		PcapWarnText2 := "Please check Pcap installation."
-		PcapWarnText3 := "See log for more details."
-		dialog.ShowInformation("", PcapWarnText1+"\n"+PcapWarnText2+"\n"+PcapWarnText3, window)
 		return false
 	}
 	return true
