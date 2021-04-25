@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/tatsushid/go-fastping"
 )
@@ -182,7 +183,7 @@ func capturePackets(stopThreadChannel chan bool, networkDevice string, dstIP net
 		case packet := <-packets:
 			// forward each captured packet
 			log.Println("UDP broadcast packet was captured and will be forwareded as udp unicast to " + dstIP.String())
-			forwardPacket(dstIP, dstPort, packet)
+			forwardPacket(dstIP, packet)
 		case <-stopThreadChannel:
 			log.Println("Stop tunneling signal recieved")
 			log.Println("Tunneling service stopped")
@@ -192,16 +193,26 @@ func capturePackets(stopThreadChannel chan bool, networkDevice string, dstIP net
 }
 
 // send the captured broacast packet as unicast to the given ip adress
-func forwardPacket(dstIP net.IP, dstPort int, packet gopacket.Packet) {
+func forwardPacket(dstIP net.IP, packet gopacket.Packet) {
 
-	serverAddr, err := net.ResolveUDPAddr("udp4", dstIP.String()+":"+strconv.Itoa(dstPort))
+	//get the udp layer of the packet due to get the meta data from the captured udp packet for correct forwarding
+	udpLayer := packet.Layer(layers.LayerTypeUDP)
+	if udpLayer == nil {
+		log.Println("Layer UDP is nil")
+		return
+	}
+	udpPacket, _ := udpLayer.(*layers.UDP)
+
+	serverAddr, err := net.ResolveUDPAddr("udp4", dstIP.String()+":"+udpPacket.DstPort.String())
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
-	conn, err := net.ListenPacket("udp", ":"+strconv.Itoa(dstPort))
+	conn, err := net.ListenPacket("udp", ":"+udpPacket.SrcPort.String())
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	// defers the udp forward execution until the surrounding function (udp connection) returns
