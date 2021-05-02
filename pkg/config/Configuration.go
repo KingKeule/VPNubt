@@ -2,7 +2,7 @@ package config
 
 type Config struct {
 	DstIP   string `json:"IP"`
-	SrcPort int    `json:"Port"`
+	DstPort int    `json:"Port"`
 }
 
 func GetDefaultConf() *Config {

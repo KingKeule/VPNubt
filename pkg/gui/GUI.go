@@ -61,27 +61,27 @@ func InitGUI() {
 	conf := checkForConfig()
 
 	// destination IP
-	inputdstIP := widget.NewEntry()
-	inputdstIP.Text = conf.DstIP
+	inputDstIP := widget.NewEntry()
+	inputDstIP.Text = conf.DstIP
 
 	// destination port
-	inputdstPort := widget.NewEntry()
-	inputdstPort.Text = strconv.Itoa(conf.SrcPort)
+	inputDstPort := widget.NewEntry()
+	inputDstPort.Text = strconv.Itoa(conf.DstPort)
 
 	// create form layout
-	widgetdstIPForm := widget.NewFormItem("IP of Server :", inputdstIP)
-	widgetdstPortForm := widget.NewFormItem("UDP Port :", inputdstPort)
-	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetdstIPForm, widgetdstPortForm))
+	widgetDstIPForm := widget.NewFormItem("IP of Server :", inputDstIP)
+	widgetDstPortForm := widget.NewFormItem("UDP Port :", inputDstPort)
+	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetDstIPForm, widgetDstPortForm))
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	buttonPing := widget.NewButton("Ping Server", func() {
-		selecteddstIP := net.ParseIP(inputdstIP.Text)
-		if !checkIPAddress(selecteddstIP, window) {
+		selectedDstIP := net.ParseIP(inputDstIP.Text)
+		if !checkIPAddress(selectedDstIP, window) {
 		} else {
-			log.Println("Start pinging server (IP: " + selecteddstIP.String() + ")")
-			recieved, err := service.Ping(selecteddstIP.String())
+			log.Println("Start pinging server (IP: " + selectedDstIP.String() + ")")
+			recieved, err := service.Ping(selectedDstIP.String())
 			if err != nil || !recieved {
 				widgetPingStatus.SetText("NOK")
 			} else {
@@ -105,18 +105,18 @@ func InitGUI() {
 	// button for start or stop tunneling service
 	// currently no easy way to change the name of the button. alternatively 2 buttons could be set.
 	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
-		port, err := strconv.Atoi(inputdstPort.Text)
-		selecteddstIP := net.ParseIP(inputdstIP.Text)
+		dstPort, err := strconv.Atoi(inputDstPort.Text)
+		dstIP := net.ParseIP(inputDstIP.Text)
 
-		if !checkIPAddress(selecteddstIP, window) {
-		} else if !checkPort(err, port, window) {
+		if !checkIPAddress(dstIP, window) {
+		} else if !checkPort(err, dstPort, window) {
 		} else if !serviceRunning {
-			log.Println("Starting udp broadcast tunneling service")
+			log.Println("Starting UDP broadcast tunneling service")
 			widgetTunnelServiceStat.SetText("Running")
-			service.CaptureAndForwardPacket(stopThreadChannel, selecteddstIP, port)
+			service.CaptureAndForwardPacket(stopThreadChannel, dstIP, dstPort)
 			serviceRunning = true
 		} else {
-			log.Println("Stopping udp broadcast tunneling service")
+			log.Println("Stopping UDP broadcast tunneling service")
 			stopThreadChannel <- true // Send stop signal to channel.
 			widgetTunnelServiceStat.SetText("Stopped")
 			serviceRunning = false
@@ -133,7 +133,7 @@ func InitGUI() {
 		widgetGroupTunnelService)
 	window.SetContent(containerAll)
 
-	// // Resize only in width due the menü width and take the actual height of the window
+	// Resize only in width due the menü width and take the actual height of the window
 	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height))
 
 	// ---------------- Menu ----------------
@@ -143,18 +143,18 @@ func InitGUI() {
 			fyne.NewMenuItem("Reset configuration", func() {
 				defaultConf := config.GetDefaultConf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstIP.SetText(defaultConf.DstIP)
-				inputdstPort.SetText(strconv.Itoa(defaultConf.SrcPort))
+				inputDstIP.SetText(defaultConf.DstIP)
+				inputDstPort.SetText(strconv.Itoa(defaultConf.DstPort))
 				widgetPingStatus.SetText("")
 				widgetTunnelServiceStat.SetText("")
 				log.Println("Reset of all input and status fields")
 			}),
 			fyne.NewMenuItem("Save configuration", func() {
-				port, err := strconv.Atoi(inputdstPort.Text)
-				selecteddstIP := net.ParseIP(inputdstIP.Text)
-				if checkIPAddress(selecteddstIP, window) {
-					if checkPort(err, port, window) {
-						writeConfigToFile(inputdstIP.Text, port, window)
+				dstIP := net.ParseIP(inputDstIP.Text)
+				if checkIPAddress(dstIP, window) {
+					dstPort, err := strconv.Atoi(inputDstPort.Text)
+					if checkPort(err, dstPort, window) {
+						writeConfigToFile(inputDstIP.Text, dstPort, window)
 					}
 				}
 			})),
@@ -162,14 +162,14 @@ func InitGUI() {
 			fyne.NewMenuItem("Warcraft 3", func() {
 				w3Conf := config.GetWar3Conf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(w3Conf.SrcPort))
-				log.Println("Set udp port (" + strconv.Itoa(w3Conf.SrcPort) + ") for selected game: Warcraft 3")
+				inputDstPort.SetText(strconv.Itoa(w3Conf.DstPort))
+				log.Println("Set UDP port (" + strconv.Itoa(w3Conf.DstPort) + ") for selected game: Warcraft 3")
 			}),
 			fyne.NewMenuItem("CoD - UO", func() {
 				coDUOConf := config.GetCoDUOConf()
 				//TODO find an better way for update the variables and move menu ahead
-				inputdstPort.SetText(strconv.Itoa(coDUOConf.SrcPort))
-				log.Println("Set udp port (" + strconv.Itoa(coDUOConf.SrcPort) + ") for selected game: Call of Duty - United Offensive")
+				inputDstPort.SetText(strconv.Itoa(coDUOConf.DstPort))
+				log.Println("Set UDP port (" + strconv.Itoa(coDUOConf.DstPort) + ") for selected game: Call of Duty - United Offensive")
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
@@ -242,9 +242,9 @@ func showWindowsConsole(show bool) {
 
 // write the current given IP address and udp port to file
 func writeConfigToFile(inputdstIP string, inputsrcPort int, window fyne.Window) {
-	log.Println("Try to write actual IP address and udp port to a config file in the workspace")
+	log.Printf("Try to write actual IP address and udp port to a configuration file (%s) in the workspace", configFileName)
 
-	actConfig := config.Config{DstIP: inputdstIP, SrcPort: inputsrcPort}
+	actConfig := config.Config{DstIP: inputdstIP, DstPort: inputsrcPort}
 
 	//marshal (pretty) to json structure
 	jsonConfigData, err := json.MarshalIndent(actConfig, "", "  ")
@@ -254,23 +254,25 @@ func writeConfigToFile(inputdstIP string, inputsrcPort int, window fyne.Window) 
 		log.Println(err)
 		dialog.ShowInformation("", "Error while saving.\n See log for more details", window)
 	} else {
-		log.Println("Configuration file (VPNubt.config) was saved successfully.")
-		dialog.ShowInformation("", "Configuration file (VPNubt.config)\n was saved successfully ", window)
+		log.Printf("Configuration file (%s) was saved successfully.", configFileName)
+		dialog.ShowInformation("", "Configuration file ("+configFileName+")\n was saved successfully", window)
 	}
 }
 
 func checkForConfig() *config.Config {
+	log.Printf("Try to read the configuration file (%s) from workspace", configFileName)
+
 	configFileBytes, err := ioutil.ReadFile(configFileName)
 	if err != nil {
-		log.Printf("No config file (%s) was found in the working directory. Using no config.", configFileName)
+		log.Printf("No configuration file (%s) was found in the working directory. Using no config", configFileName)
 		return config.GetDefaultConf()
 	}
 
-	log.Printf("Config file (%s) was found in the working directory and will be imported.", configFileName)
+	log.Printf("Configuration file (%s) was found in the working directory and will be imported", configFileName)
 	var actConfig config.Config
 	err = json.Unmarshal([]byte(configFileBytes), &actConfig)
 	if err != nil {
-		log.Printf("Error while marshalling config file. %s.", err)
+		log.Printf("Error while marshalling configuration file. %s", err)
 		return config.GetDefaultConf()
 	} else {
 		return &actConfig

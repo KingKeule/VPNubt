@@ -42,18 +42,18 @@ func Ping(addr string) (bool, error) {
 
 // capture all udp broadcast packets on given port and forward them to the given destination ip address
 // via the StopThreadChannel this function receives the information from the GUI to be stopped
-func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int) {
+func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, dstPort int) {
 	//selection, whether to start or stop the service when the stop signal comes
 
 	// resolve the address for given port
-	srcAddr, err := net.ResolveUDPAddr("udp", ":"+strconv.Itoa(port))
+	srcAddr, err := net.ResolveUDPAddr("udp", ":"+strconv.Itoa(dstPort))
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
 	// create an udp socket
-	log.Printf("Listen on UDP port: %d", port)
+	log.Printf("Listen on UDP port: %d", dstPort)
 	conn, err := net.ListenUDP("udp", srcAddr)
 	if err != nil {
 		log.Println(err)
@@ -71,7 +71,7 @@ func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 		for {
 			select {
 			case <-stopThreadChannel:
-				log.Println("Tunneling service stopped")
+				log.Println("UDP broadcast tunneling service stopped")
 				return
 
 			default:
@@ -92,12 +92,10 @@ func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 
 				// forward packet
 				if rlen > 0 {
-					log.Printf("UDP packet (%d bytes) was received and is being forwarded to %s.", rlen, dstIP.String())
-
-					// decoder := gob.NewDecoder(buf[0:rlen])
+					log.Printf("UDP packet (payload: %d bytes) was received and is being forwarded to %s:%d", rlen, dstIP.String(), dstPort)
 
 					dstAddr := net.UDPAddr{
-						Port: port,
+						Port: dstPort,
 						IP:   net.ParseIP(dstIP.String()),
 					}
 
@@ -105,7 +103,7 @@ func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, port int
 					if err != nil {
 						log.Println(err)
 					} else {
-						log.Printf("UDP packet was successfully forwarded to %s.", dstIP.String())
+						log.Printf("UDP packet was successfully forwarded to %s:%d", dstIP.String(), dstPort)
 					}
 				}
 			}
