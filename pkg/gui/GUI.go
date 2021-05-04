@@ -24,7 +24,7 @@ var screenWidth = 280
 var screenHight = 400 // not really used because the minimum height is desired
 
 const appname = "VPNubt"
-const version = "v1.2"
+const version = "v2.0"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
 const configFileName = "VPNubt.config"
 
