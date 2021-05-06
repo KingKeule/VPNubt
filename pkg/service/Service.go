@@ -45,16 +45,9 @@ func Ping(addr string) (bool, error) {
 func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, dstPort int) {
 	//selection, whether to start or stop the service when the stop signal comes
 
-	// resolve the address for given port
-	srcAddr, err := net.ResolveUDPAddr("udp", ":"+strconv.Itoa(dstPort))
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	// create an udp socket
 	log.Printf("Listen on UDP port: %d", dstPort)
-	conn, err := net.ListenUDP("udp", srcAddr)
+	conn, err := net.ListenPacket("udp", ":"+strconv.Itoa(dstPort))
 	if err != nil {
 		log.Println(err)
 		return
@@ -85,28 +78,51 @@ func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, dstPort 
 				//log.Printf("UDP connection timeout is set to %s. Timeouts are not logged.", timeout)
 
 				//read packet on given udp port
-				rlen, _, err := conn.ReadFromUDP(buf[:])
+				rlen, srcAddr, err := conn.ReadFrom(buf[:])
 				if err != nil && !strings.Contains(err.Error(), "timeout") {
 					log.Println(err)
 				}
 
 				// forward packet
 				if rlen > 0 {
-					log.Printf("UDP packet (payload: %d bytes) was received and is being forwarded to %s:%d", rlen, dstIP.String(), dstPort)
-
-					dstAddr := net.UDPAddr{
-						Port: dstPort,
-						IP:   net.ParseIP(dstIP.String()),
-					}
-
-					_, err := conn.WriteTo(buf[0:rlen], &dstAddr)
+					log.Printf("UDP packet (payload: %d bytes) was received from %s and is being forwarded to %s:%d", rlen, srcAddr, dstIP.String(), dstPort)
+					srcAddr := strings.Split(srcAddr.String(), ":")
+					srcPort, err := strconv.Atoi(srcAddr[1])
 					if err != nil {
 						log.Println(err)
-					} else {
-						log.Printf("UDP packet was successfully forwarded to %s:%d", dstIP.String(), dstPort)
+						return
 					}
+					// this method must not be multi-threading, otherwise there will be duplicate stack creation which will not work
+					forwardPacket(conn, dstIP, dstPort, srcPort, buf[0:rlen])
 				}
 			}
 		}
 	}()
+}
+
+func forwardPacket(conn net.PacketConn, dstIP net.IP, dstPort int, srcPort int, data []byte) {
+	//normally the destination port is also the source port.
+	//however, in order to generically forward all packets correctly and not to manipulate them, there is a check here.
+	//if the ports are different a new socket must be created otherwise the existing one is used.
+	if srcPort != dstPort {
+		conn, err := net.ListenPacket("udp", ":"+strconv.Itoa(srcPort))
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		defer conn.Close()
+	}
+
+	dstAddr := net.UDPAddr{
+		Port: dstPort,
+		IP:   dstIP,
+	}
+
+	_, err := conn.WriteTo(data, &dstAddr)
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("UDP packet was successfully forwarded to %s:%d", dstIP, dstPort)
+	}
 }
