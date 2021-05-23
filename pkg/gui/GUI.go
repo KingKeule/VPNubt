@@ -2,6 +2,7 @@ package gui
 
 import (
 	"encoding/json"
+	"image/color"
 	"io/ioutil"
 	"log"
 	"net"
@@ -9,19 +10,21 @@ import (
 	"strconv"
 	"syscall"
 
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/dialog"
-	"fyne.io/fyne/layout"
-	"fyne.io/fyne/theme"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+
 	"github.com/KingKeule/VPNubt/img"
 	"github.com/KingKeule/VPNubt/pkg/config"
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
-var screenWidth = 280
-var screenHight = 400 // not really used because the minimum height is desired
+var screenWidth float32 = 280
 
 const appname = "VPNubt"
 const version = "v2.1"
@@ -71,7 +74,7 @@ func InitGUI() {
 	// create form layout
 	widgetDstIPForm := widget.NewFormItem("IP of Server :", inputDstIP)
 	widgetDstPortForm := widget.NewFormItem("UDP Port :", inputDstPort)
-	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetDstIPForm, widgetDstPortForm))
+	widgetGroupConf := widget.NewForm(widgetDstIPForm, widgetDstPortForm)
 
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
@@ -90,8 +93,7 @@ func InitGUI() {
 		}
 	})
 
-	widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		buttonPing, widgetPingStatus))
+	widgetGroupPing := container.NewGridWithColumns(2, buttonPing, widgetPingStatus)
 
 	// ---------------- Container Service Command ----------------
 	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
@@ -123,13 +125,30 @@ func InitGUI() {
 		}
 	})
 
-	widgetGroupTunnelService := widget.NewGroup("Tunnelling Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		buttonTunnelServiceStat, widgetTunnelServiceStat))
+	widgetGroupTunnelService := container.NewGridWithColumns(2, buttonTunnelServiceStat, widgetTunnelServiceStat)
+
+	confText := canvas.NewText("Configuration", color.White)
+	confText.TextStyle.Bold = true
+	confText.Alignment = fyne.TextAlignCenter
+	pingText := canvas.NewText("Ping", color.White)
+	pingText.TextStyle.Bold = true
+	pingText.Alignment = fyne.TextAlignCenter
+	serviceText := canvas.NewText("Tunneling Service", color.White)
+	serviceText.TextStyle.Bold = true
+	serviceText.Alignment = fyne.TextAlignCenter
 
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
+		// confText2 := widget.NewLabelWithStyle("Configuration", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+		// canvas.NewLine(color.White),
+		confText,
+		widget.NewSeparator(),
 		widgetGroupConf,
+		pingText,
+		widget.NewSeparator(),
 		widgetGroupPing,
+		serviceText,
+		widget.NewSeparator(),
 		widgetGroupTunnelService)
 	window.SetContent(containerAll)
 
