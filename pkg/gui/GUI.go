@@ -2,7 +2,6 @@ package gui
 
 import (
 	"encoding/json"
-	"image/color"
 	"io/ioutil"
 	"log"
 	"net"
@@ -12,7 +11,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -127,29 +125,11 @@ func InitGUI() {
 
 	widgetGroupTunnelService := container.NewGridWithColumns(2, buttonTunnelServiceStat, widgetTunnelServiceStat)
 
-	confText := canvas.NewText("Configuration", color.White)
-	confText.TextStyle.Bold = true
-	confText.Alignment = fyne.TextAlignCenter
-	pingText := canvas.NewText("Ping", color.White)
-	pingText.TextStyle.Bold = true
-	pingText.Alignment = fyne.TextAlignCenter
-	serviceText := canvas.NewText("Tunneling Service", color.White)
-	serviceText.TextStyle.Bold = true
-	serviceText.Alignment = fyne.TextAlignCenter
-
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
-		// confText2 := widget.NewLabelWithStyle("Configuration", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-		// canvas.NewLine(color.White),
-		confText,
-		widget.NewSeparator(),
-		widgetGroupConf,
-		pingText,
-		widget.NewSeparator(),
-		widgetGroupPing,
-		serviceText,
-		widget.NewSeparator(),
-		widgetGroupTunnelService)
+		widget.NewCard("", "Configuration", widgetGroupConf),
+		widget.NewCard("", "Ping", widgetGroupPing),
+		widget.NewCard("", "Tunneling Service", widgetGroupTunnelService))
 	window.SetContent(containerAll)
 
 	// Resize only in width due the menü width and take the actual height of the window
