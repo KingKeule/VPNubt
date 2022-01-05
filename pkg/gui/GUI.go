@@ -23,6 +23,7 @@ import (
 )
 
 var screenWidth float32 = 280
+var menuHeight float32 = 26
 
 const appname = "VPNubt"
 const version = "v2.1"
@@ -133,7 +134,7 @@ func InitGUI() {
 	window.SetContent(containerAll)
 
 	// Resize only in width due the menü width and take the actual height of the window
-	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height))
+	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height+menuHeight))
 
 	// ---------------- Menu ----------------
 	// define and add the menu to the window
