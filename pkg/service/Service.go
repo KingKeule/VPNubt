@@ -42,7 +42,7 @@ func Ping(addr string) (bool, error) {
 
 // capture all udp broadcast packets on given port and forward them to the given destination ip address
 // via the StopThreadChannel this function receives the information from the GUI to be stopped
-func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, dstPort int) {
+func CaptureAndForwardPacket(stopThreadChannel chan bool, pktCntChannel chan bool, dstIP net.IP, dstPort int) {
 	//selection, whether to start or stop the service when the stop signal comes
 
 	// create an udp socket
@@ -93,14 +93,14 @@ func CaptureAndForwardPacket(stopThreadChannel chan bool, dstIP net.IP, dstPort 
 						return
 					}
 					// this method must not be multi-threading, otherwise there will be duplicate stack creation which will not work
-					forwardPacket(conn, dstIP, dstPort, srcPort, buf[0:rlen])
+					forwardPacket(conn, dstIP, dstPort, srcPort, buf[0:rlen], pktCntChannel)
 				}
 			}
 		}
 	}()
 }
 
-func forwardPacket(conn net.PacketConn, dstIP net.IP, dstPort int, srcPort int, data []byte) {
+func forwardPacket(conn net.PacketConn, dstIP net.IP, dstPort int, srcPort int, data []byte, pktCntChannel chan bool) {
 	//normally the destination port is also the source port.
 	//however, in order to generically forward all packets correctly and not to manipulate them, there is a check here.
 	//if the ports are different a new socket must be created otherwise the existing one is used.
@@ -124,5 +124,6 @@ func forwardPacket(conn net.PacketConn, dstIP net.IP, dstPort int, srcPort int, 
 		log.Println(err)
 	} else {
 		log.Printf("UDP packet was successfully forwarded to %s:%d", dstIP, dstPort)
+		pktCntChannel <- true // increase the counter of forwarded packet
 	}
 }
