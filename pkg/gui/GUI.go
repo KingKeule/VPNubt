@@ -25,6 +25,8 @@ import (
 var screenWidth float32 = 280
 var menuHeight float32 = 26
 
+var fwdPktCnt int = 0
+
 const appname = "VPNubt"
 const version = "v2.1"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
@@ -57,6 +59,13 @@ func InitGUI() {
 
 	// do not allow to resize the window
 	window.SetFixedSize(true)
+
+	// ---------------- event channels  ----------------
+	// create a channel to communicate the stop command to capture & forwart thread
+	stopThreadChannel := make(chan bool)
+
+	// create a channel to notify a new forwarded packet or to reset the forwarded packet counter
+	pktCntChannel := make(chan bool)
 
 	// ---------------- Container Configuration ----------------
 	// set default values for IP and Port from global config
@@ -94,12 +103,15 @@ func InitGUI() {
 
 	widgetGroupPing := container.NewGridWithColumns(2, buttonPing, widgetPingStatus)
 
+	// ---------------- Container status ----------------
+	widgetServiceStatLabel := widget.NewLabelWithStyle("Service:", fyne.TextAlignTrailing, fyne.TextStyle{Bold: false})
+	widgetServiceStatValue := widget.NewLabelWithStyle("Stopped", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	widgetPktCntLabel := widget.NewLabelWithStyle("Fwd packets:", fyne.TextAlignTrailing, fyne.TextStyle{Bold: false})
+	WidgetPktCntValue := widget.NewLabelWithStyle("0", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	widgetGroupStatus := fyne.NewContainerWithLayout(layout.NewGridLayout(2),
+		widgetServiceStatLabel, widgetServiceStatValue, widgetPktCntLabel, WidgetPktCntValue)
+
 	// ---------------- Container Service Command ----------------
-	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
-
-	// create a channel to communicate the stop command to capture & forwart thread
-	stopThreadChannel := make(chan bool)
-
 	// boolean value to differentiate whether to start the tunneling service or not
 	serviceRunning := false
 
@@ -113,18 +125,16 @@ func InitGUI() {
 		} else if !checkPort(err, dstPort, window) {
 		} else if !serviceRunning {
 			log.Println("Starting UDP broadcast tunneling service")
-			widgetTunnelServiceStat.SetText("Running")
-			service.CaptureAndForwardPacket(stopThreadChannel, dstIP, dstPort)
+			widgetServiceStatValue.SetText("Running")
+			service.CaptureAndForwardPacket(stopThreadChannel, pktCntChannel, dstIP, dstPort)
 			serviceRunning = true
 		} else {
 			log.Println("Stopping UDP broadcast tunneling service")
 			stopThreadChannel <- true // Send stop signal to channel.
-			widgetTunnelServiceStat.SetText("Stopped")
+			widgetServiceStatValue.SetText("Stopped")
 			serviceRunning = false
 		}
 	})
-
-	widgetGroupTunnelService := container.NewGridWithColumns(2, buttonTunnelServiceStat, widgetTunnelServiceStat)
 
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
@@ -133,7 +143,9 @@ func InitGUI() {
 		NewGroupCustom("Ping"),
 		widgetGroupPing,
 		NewGroupCustom("Tunneling Service"),
-		widgetGroupTunnelService)
+		buttonTunnelServiceStat,
+		NewGroupCustom("Status"),
+		widgetGroupStatus)
 	window.SetContent(containerAll)
 
 	// Resize only in width due the menü width and take the actual height of the window
@@ -143,13 +155,14 @@ func InitGUI() {
 	// define and add the menu to the window
 	window.SetMainMenu(fyne.NewMainMenu(
 		fyne.NewMenu("Tool",
-			fyne.NewMenuItem("Reset configuration", func() {
+			fyne.NewMenuItem("Reset all values", func() {
 				defaultConf := config.GetDefaultConf()
 				//TODO find an better way for update the variables and move menu ahead
 				inputDstIP.SetText(defaultConf.DstIP)
 				inputDstPort.SetText(strconv.Itoa(defaultConf.DstPort))
 				widgetPingStatus.SetText("")
-				widgetTunnelServiceStat.SetText("")
+				widgetServiceStatValue.SetText("")
+				pktCntChannel <- false // reset the counter and display of forwarded packets
 				log.Println("Reset of all input and status fields")
 			}),
 			fyne.NewMenuItem("Save configuration", func() {
@@ -185,8 +198,28 @@ func InitGUI() {
 			}),
 		)))
 
+	//  start the gui update mechanism e.g. for the packet counter widget
+	go updateGui(WidgetPktCntValue, pktCntChannel)
+
 	// Show all of our set content and run the gui.
 	window.ShowAndRun()
+}
+
+// gui update mechanism
+func updateGui(widgetPktCntValue *widget.Label, pktCntChannel chan bool) {
+	for {
+		select {
+
+		case pktCntChannelValue := <-pktCntChannel:
+			if pktCntChannelValue == true {
+				fwdPktCnt += 1
+				widgetPktCntValue.SetText(strconv.Itoa(fwdPktCnt))
+			} else {
+				fwdPktCnt = 0
+				widgetPktCntValue.SetText("")
+			}
+		}
+	}
 }
 
 // checks whether the given string is a valid IP address
