@@ -128,9 +128,12 @@ func InitGUI() {
 
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
-		widget.NewCard("", "Configuration", widgetGroupConf),
-		widget.NewCard("", "Ping", widgetGroupPing),
-		widget.NewCard("", "Tunneling Service", widgetGroupTunnelService))
+		NewGroupCustom("Configuration"),
+		widgetGroupConf,
+		NewGroupCustom("Ping"),
+		widgetGroupPing,
+		NewGroupCustom("Tunneling Service"),
+		widgetGroupTunnelService)
 	window.SetContent(containerAll)
 
 	// Resize only in width due the menü width and take the actual height of the window
