@@ -2,6 +2,7 @@ package gui
 
 import (
 	"encoding/json"
+	"image/color"
 	"io/ioutil"
 	"log"
 	"net"
@@ -11,6 +12,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -80,12 +82,12 @@ func InitGUI() {
 	inputDstPort.Text = strconv.Itoa(conf.DstPort)
 
 	// create form layout
-	widgetDstIPForm := widget.NewFormItem("IP of Server :", inputDstIP)
-	widgetDstPortForm := widget.NewFormItem("UDP Port :", inputDstPort)
+	widgetDstIPForm := widget.NewFormItem("IP of Server:", inputDstIP)
+	widgetDstPortForm := widget.NewFormItem("UDP Port:", inputDstPort)
 	widgetGroupConf := widget.NewForm(widgetDstIPForm, widgetDstPortForm)
 
 	// ---------------- Container Ping ----------------
-	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	widgetPingStatus := widget.NewLabelWithStyle("---", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	buttonPing := widget.NewButton("Ping Server", func() {
 		selectedDstIP := net.ParseIP(inputDstIP.Text)
@@ -115,9 +117,14 @@ func InitGUI() {
 	// boolean value to differentiate whether to start the tunneling service or not
 	serviceRunning := false
 
+	// since the button is transparent and cannot have any color, a color layer is integrated
+	bgLayerRed := canvas.NewRectangle(color.NRGBA{R: 200, G: 0, B: 0, A: 200})
+	bgLayerGreen := canvas.NewRectangle(color.NRGBA{R: 0, G: 200, B: 0, A: 200})
+
 	// button for start or stop tunneling service
 	// currently no easy way to change the name of the button. alternatively 2 buttons could be set.
-	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
+	buttonTunnelServiceStat := widget.NewButton("Start", nil)
+	buttonTunnelServiceStat.OnTapped = func() {
 		dstPort, err := strconv.Atoi(inputDstPort.Text)
 		dstIP := net.ParseIP(inputDstIP.Text)
 
@@ -126,15 +133,21 @@ func InitGUI() {
 		} else if !serviceRunning {
 			log.Println("Starting UDP broadcast tunneling service")
 			widgetServiceStatValue.SetText("Running")
+			buttonTunnelServiceStat.SetText("Stop")
+			bgLayerGreen.Hide()
 			service.CaptureAndForwardPacket(stopThreadChannel, pktCntChannel, dstIP, dstPort)
 			serviceRunning = true
 		} else {
 			log.Println("Stopping UDP broadcast tunneling service")
 			stopThreadChannel <- true // Send stop signal to channel.
 			widgetServiceStatValue.SetText("Stopped")
+			buttonTunnelServiceStat.SetText("Start")
+			bgLayerGreen.Show()
 			serviceRunning = false
 		}
-	})
+	}
+
+	containerServiceCmd := container.New(layout.NewMaxLayout(), container.New(layout.NewPaddedLayout(), bgLayerRed, bgLayerGreen), buttonTunnelServiceStat)
 
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
@@ -143,12 +156,12 @@ func InitGUI() {
 		NewGroupCustom("Ping"),
 		widgetGroupPing,
 		NewGroupCustom("Tunneling Service"),
-		buttonTunnelServiceStat,
+		containerServiceCmd,
 		NewGroupCustom("Status"),
 		widgetGroupStatus)
 	window.SetContent(containerAll)
 
-	// Resize only in width due the menü width and take the actual height of the window
+	// Resize only in width due the menu width and take the actual height of the window
 	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height+menuHeight))
 
 	// ---------------- Menu ----------------
