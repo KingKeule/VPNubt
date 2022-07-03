@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"syscall"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -89,19 +90,28 @@ func InitGUI() {
 	// ---------------- Container Ping ----------------
 	widgetPingStatus := widget.NewLabelWithStyle("---", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-	buttonPing := widget.NewButton("Ping Server", func() {
+	buttonPing := widget.NewButton("Ping Server", func() {})
+	buttonPing.OnTapped = func() {
 		selectedDstIP := net.ParseIP(inputDstIP.Text)
 		if !checkIPAddress(selectedDstIP, window) {
-		} else {
-			log.Println("Start pinging server (IP: " + selectedDstIP.String() + ")")
-			recieved, err := service.Ping(selectedDstIP.String())
-			if err != nil || !recieved {
-				widgetPingStatus.SetText("NOK")
-			} else {
-				widgetPingStatus.SetText("OK")
-			}
+			return
 		}
-	})
+		log.Println("Ping IP:", selectedDstIP.String())
+		pong := make(chan bool)
+		go service.Ping(selectedDstIP.String(), pong)
+		go func() {
+			buttonPing.Disable()
+			defer buttonPing.Enable()
+			timeout := time.NewTimer(1100 * time.Millisecond)
+			defer timeout.Stop()
+			select {
+			case <-pong:
+				widgetPingStatus.SetText("OK")
+			case <-timeout.C:
+				widgetPingStatus.SetText("NOK")
+			}
+		}()
+	}
 
 	widgetGroupPing := container.NewGridWithColumns(2, buttonPing, widgetPingStatus)
 
