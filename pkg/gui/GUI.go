@@ -105,8 +105,12 @@ func InitGUI() {
 			timeout := time.NewTimer(1100 * time.Millisecond)
 			defer timeout.Stop()
 			select {
-			case <-pong:
-				widgetPingStatus.SetText("OK")
+			case p := <-pong:
+				if p {
+					widgetPingStatus.SetText("OK")
+				} else {
+					widgetPingStatus.SetText("NOK")
+				}
 			case <-timeout.C:
 				widgetPingStatus.SetText("NOK")
 			}
