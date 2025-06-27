@@ -7,7 +7,6 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
-	"syscall"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
@@ -28,18 +27,18 @@ const version = "v2.0"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
 const configFileName = "VPNubt.config"
 
-//Initialization of the GUI
+// Initialization of the GUI
 func InitGUI() {
 
 	// hide the windows console window
-	showWindowsConsole(false)
+	// showWindowsConsole(false)
 
 	// ---------------- App/window configuration ----------------
 	// Initialize our new fyne interface application.
 	app := app.New()
 
 	// set the theme for the app. Default is dark theme
-	app.Settings().SetTheme(theme.DarkTheme())
+	app.Settings().SetTheme(theme.LightTheme())
 
 	// set the logo of the application
 	app.SetIcon(Logo())
@@ -74,24 +73,24 @@ func InitGUI() {
 	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetDstIPForm, widgetDstPortForm))
 
 	// ---------------- Container Ping ----------------
-	widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	// widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-	buttonPing := widget.NewButton("Ping Server", func() {
-		selectedDstIP := net.ParseIP(inputDstIP.Text)
-		if !checkIPAddress(selectedDstIP, window) {
-		} else {
-			log.Println("Start pinging server (IP: " + selectedDstIP.String() + ")")
-			recieved, err := service.Ping(selectedDstIP.String())
-			if err != nil || !recieved {
-				widgetPingStatus.SetText("NOK")
-			} else {
-				widgetPingStatus.SetText("OK")
-			}
-		}
-	})
+	// buttonPing := widget.NewButton("Ping Server", func() {
+	// 	selectedDstIP := net.ParseIP(inputDstIP.Text)
+	// 	if !checkIPAddress(selectedDstIP, window) {
+	// 	} else {
+	// 		log.Println("Start pinging server (IP: " + selectedDstIP.String() + ")")
+	// 		// recieved, err := service.Ping(selectedDstIP.String())
+	// 		// if err != nil || !recieved {
+	// 		// 	widgetPingStatus.SetText("NOK")
+	// 		// } else {
+	// 		widgetPingStatus.SetText("OK")
+	// 		//}
+	// 	}
+	// })
 
-	widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		buttonPing, widgetPingStatus))
+	// widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
+	// 	buttonPing, widgetPingStatus))
 
 	// ---------------- Container Service Command ----------------
 	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
@@ -126,11 +125,15 @@ func InitGUI() {
 	widgetGroupTunnelService := widget.NewGroup("Tunnelling Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
 		buttonTunnelServiceStat, widgetTunnelServiceStat))
 
+	widgetGroupWireguard := widget.NewGroup("Wireguard", wireguard())
+
 	// ---------------- Container complete ----------------
 	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
 		widgetGroupConf,
-		widgetGroupPing,
-		widgetGroupTunnelService)
+		//widgetGroupPing,
+		widgetGroupTunnelService,
+		widgetGroupWireguard,
+	)
 	window.SetContent(containerAll)
 
 	// Resize only in width due the menü width and take the actual height of the window
@@ -145,7 +148,7 @@ func InitGUI() {
 				//TODO find an better way for update the variables and move menu ahead
 				inputDstIP.SetText(defaultConf.DstIP)
 				inputDstPort.SetText(strconv.Itoa(defaultConf.DstPort))
-				widgetPingStatus.SetText("")
+				//widgetPingStatus.SetText("")
 				widgetTunnelServiceStat.SetText("")
 				log.Println("Reset of all input and status fields")
 			}),
@@ -173,7 +176,7 @@ func InitGUI() {
 			})),
 		fyne.NewMenu("Help",
 			fyne.NewMenuItem("Show Log", func() {
-				showWindowsConsole(true)
+				//showWindowsConsole(true)
 			}),
 			fyne.NewMenuItem("About", func() {
 				// windows command to open the browser with the given link
@@ -215,30 +218,30 @@ func checkPort(err error, port int, window fyne.Window) bool {
 // https://stackoverflow.com/questions/23743217/printing-output-to-a-command-window-when-golang-application-is-compiled-with-ld/23744350
 // https://forum.golangbridge.org/t/no-println-output-with-go-build-ldflags-h-windowsgui/7633/6
 // this functions open the windows standard console window
-func showWindowsConsole(show bool) {
-	getConsoleWindow := syscall.NewLazyDLL("kernel32.dll").NewProc("GetConsoleWindow")
-	if getConsoleWindow.Find() != nil {
-		return
-	}
+// func showWindowsConsole(show bool) {
+// 	getConsoleWindow := syscall.NewLazyDLL("kernel32.dll").NewProc("GetConsoleWindow")
+// 	if getConsoleWindow.Find() != nil {
+// 		return
+// 	}
 
-	showWindow := syscall.NewLazyDLL("user32.dll").NewProc("ShowWindow")
-	if showWindow.Find() != nil {
-		return
-	}
+// 	showWindow := syscall.NewLazyDLL("user32.dll").NewProc("ShowWindow")
+// 	if showWindow.Find() != nil {
+// 		return
+// 	}
 
-	hwnd, _, _ := getConsoleWindow.Call()
-	if hwnd == 0 {
-		return
-	}
+// 	hwnd, _, _ := getConsoleWindow.Call()
+// 	if hwnd == 0 {
+// 		return
+// 	}
 
-	if show {
-		showWindow.Call(hwnd, syscall.SW_RESTORE)
-		log.Println("Windows console window is displayed")
-	} else {
-		showWindow.Call(hwnd, syscall.SW_HIDE)
-		log.Println("Windows console window is hided")
-	}
-}
+// 	if show {
+// 		showWindow.Call(hwnd, syscall.SW_RESTORE)
+// 		log.Println("Windows console window is displayed")
+// 	} else {
+// 		showWindow.Call(hwnd, syscall.SW_HIDE)
+// 		log.Println("Windows console window is hided")
+// 	}
+// }
 
 // write the current given IP address and udp port to file
 func writeConfigToFile(inputdstIP string, inputsrcPort int, window fyne.Window) {
