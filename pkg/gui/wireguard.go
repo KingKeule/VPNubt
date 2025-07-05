@@ -31,7 +31,11 @@ func wireguard() *fyne.Container {
 		),
 		widget.NewGroup("This Peer",
 			widget.NewForm(
-				widget.NewFormItem("IP", &widget.Select{Options: []string{"a", "b"}}),
+				widget.NewFormItem("IP", &widget.Select{
+					Selected:  config.Prefs.String("thisPeerIP"),
+					Options:   config.ThisNetworkHostAddresses(),
+					OnChanged: func(s string) { config.Prefs.SetString("thisPeerIP", s) },
+				}),
 				widget.NewFormItem("Private Key", &widget.Entry{
 					Text:     service.WgConf().Interface.PrivateKey.String(),
 					ReadOnly: true,
