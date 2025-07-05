@@ -38,6 +38,7 @@ func InitGUI() {
 	app := app.NewWithID("github.com/KingKeule/VPNubt")
 
 	config.Prefs = app.Preferences()
+	config.InitAfterFyneApp()
 
 	// set the theme for the app. Default is dark theme
 	app.Settings().SetTheme(theme.LightTheme())

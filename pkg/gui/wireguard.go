@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/canvas"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
+	"github.com/KingKeule/VPNubt/pkg/config"
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
@@ -25,11 +26,12 @@ func wireguard() *fyne.Container {
 		),
 		widget.NewGroup("IPv4 Network",
 			widget.NewForm(
-				widget.NewFormItem("CIDR", &widget.Entry{Text: "10.0.0.0/24"}),
+				widget.NewFormItem("CIDR", &widget.Entry{Text: config.Prefs.String("network")}),
 			),
 		),
 		widget.NewGroup("This Peer",
 			widget.NewForm(
+				widget.NewFormItem("IP", &widget.Select{Options: []string{"a", "b"}}),
 				widget.NewFormItem("Private Key", &widget.Entry{
 					Text:     service.WgConf().Interface.PrivateKey.String(),
 					ReadOnly: true,

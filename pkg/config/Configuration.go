@@ -4,6 +4,13 @@ import "fyne.io/fyne"
 
 var Prefs fyne.Preferences
 
+func InitAfterFyneApp() {
+	network := Prefs.StringWithFallback("network", "new")
+	if network == "new" {
+		Prefs.SetString("network", "10.0.0.0/29")
+	}
+}
+
 type Config struct {
 	DstIP   string `json:"IP"`
 	DstPort int    `json:"Port"`
