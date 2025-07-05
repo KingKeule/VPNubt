@@ -27,8 +27,6 @@ const version = "v2.0"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
 const configFileName = "VPNubt.config"
 
-var prefs fyne.Preferences
-
 // Initialization of the GUI
 func InitGUI() {
 
@@ -39,7 +37,7 @@ func InitGUI() {
 	// Initialize our new fyne interface application.
 	app := app.NewWithID("github.com/KingKeule/VPNubt")
 
-	prefs = app.Preferences()
+	config.Prefs = app.Preferences()
 
 	// set the theme for the app. Default is dark theme
 	app.Settings().SetTheme(theme.LightTheme())

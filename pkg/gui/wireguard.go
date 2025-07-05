@@ -7,26 +7,8 @@ import (
 	"fyne.io/fyne/canvas"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
-	"golang.zx2c4.com/wireguard/windows/conf"
+	"github.com/KingKeule/VPNubt/pkg/service"
 )
-
-func newWgConf() string {
-	pk, _ := conf.NewPrivateKey()
-	config := conf.Config{
-		Name:      "VPNubt",
-		Interface: conf.Interface{PrivateKey: *pk},
-	}
-	return config.ToWgQuick()
-}
-
-func wgconf() *conf.Config {
-	asString := prefs.StringWithFallback("wgconf", "new")
-	if asString == "new" {
-		asString = newWgConf()
-	}
-	wgconf, _ := conf.FromWgQuick(asString, "VPNubt")
-	return wgconf
-}
 
 func wireguard() *fyne.Container {
 	return fyne.NewContainerWithLayout(
@@ -49,12 +31,12 @@ func wireguard() *fyne.Container {
 		widget.NewGroup("This Peer",
 			widget.NewForm(
 				widget.NewFormItem("Private Key", &widget.Entry{
-					Text:     wgconf().Interface.PrivateKey.String(),
+					Text:     service.WgConf().Interface.PrivateKey.String(),
 					ReadOnly: true,
 					Wrapping: fyne.TextTruncate,
 				}),
 				widget.NewFormItem("Public Key", &widget.Entry{
-					Text:     wgconf().Interface.PrivateKey.Public().String(),
+					Text:     service.WgConf().Interface.PrivateKey.Public().String(),
 					ReadOnly: true,
 					Wrapping: fyne.TextTruncate,
 				}),

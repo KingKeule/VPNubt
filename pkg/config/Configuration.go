@@ -1,5 +1,9 @@
 package config
 
+import "fyne.io/fyne"
+
+var Prefs fyne.Preferences
+
 type Config struct {
 	DstIP   string `json:"IP"`
 	DstPort int    `json:"Port"`
