@@ -19,9 +19,6 @@ import (
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
-var screenWidth = 280
-var screenHight = 400 // not really used because the minimum height is desired
-
 const appname = "VPNubt"
 const version = "v2.0"
 const gitHubLink = "https://github.com/KingKeule/VPNubt"
@@ -138,9 +135,6 @@ func InitGUI() {
 		widgetGroupWireguard,
 	)
 	window.SetContent(containerAll)
-
-	// Resize only in width due the menü width and take the actual height of the window
-	window.Resize(fyne.NewSize(screenWidth, window.Canvas().Size().Height))
 
 	// ---------------- Menu ----------------
 	// define and add the menu to the window

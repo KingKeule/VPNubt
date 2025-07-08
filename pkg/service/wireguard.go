@@ -22,3 +22,7 @@ func WgConf() *conf.Config {
 	wgconf, _ := conf.FromWgQuick(asString, "VPNubt")
 	return wgconf
 }
+
+func UpdatePeer(name, pubkey string) error {
+	return nil
+}
