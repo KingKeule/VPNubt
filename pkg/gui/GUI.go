@@ -5,18 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"os/exec"
-	"strconv"
 
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/dialog"
-	"fyne.io/fyne/layout"
-	"fyne.io/fyne/theme"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/dialog"
 	"github.com/KingKeule/VPNubt/img"
 	"github.com/KingKeule/VPNubt/pkg/config"
-	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
 const appname = "VPNubt"
@@ -37,9 +31,6 @@ func InitGUI() {
 	config.Prefs = app.Preferences()
 	config.InitAfterFyneApp()
 
-	// set the theme for the app. Default is dark theme
-	app.Settings().SetTheme(theme.LightTheme())
-
 	// set the logo of the application
 	app.SetIcon(Logo())
 
@@ -55,132 +46,8 @@ func InitGUI() {
 	// do not allow to resize the window
 	window.SetFixedSize(true)
 
-	// ---------------- Container Configuration ----------------
-	// set default values for IP and Port from global config
-	conf := checkForConfig()
-
-	// destination IP
-	inputDstIP := widget.NewEntry()
-	inputDstIP.Text = conf.DstIP
-
-	// destination port
-	inputDstPort := widget.NewEntry()
-	inputDstPort.Text = strconv.Itoa(conf.DstPort)
-
-	// create form layout
-	widgetDstIPForm := widget.NewFormItem("IP of Server :", inputDstIP)
-	widgetDstPortForm := widget.NewFormItem("UDP Port :", inputDstPort)
-	widgetGroupConf := widget.NewGroup("Configuration", widget.NewForm(widgetDstIPForm, widgetDstPortForm))
-
-	// ---------------- Container Ping ----------------
-	// widgetPingStatus := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-
-	// buttonPing := widget.NewButton("Ping Server", func() {
-	// 	selectedDstIP := net.ParseIP(inputDstIP.Text)
-	// 	if !checkIPAddress(selectedDstIP, window) {
-	// 	} else {
-	// 		log.Println("Start pinging server (IP: " + selectedDstIP.String() + ")")
-	// 		// recieved, err := service.Ping(selectedDstIP.String())
-	// 		// if err != nil || !recieved {
-	// 		// 	widgetPingStatus.SetText("NOK")
-	// 		// } else {
-	// 		widgetPingStatus.SetText("OK")
-	// 		//}
-	// 	}
-	// })
-
-	// widgetGroupPing := widget.NewGroup("Ping", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-	// 	buttonPing, widgetPingStatus))
-
-	// ---------------- Container Service Command ----------------
-	widgetTunnelServiceStat := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Bold: false})
-
-	// create a channel to communicate the stop command to capture & forwart thread
-	stopThreadChannel := make(chan bool)
-
-	// boolean value to differentiate whether to start the tunneling service or not
-	serviceRunning := false
-
-	// button for start or stop tunneling service
-	// currently no easy way to change the name of the button. alternatively 2 buttons could be set.
-	buttonTunnelServiceStat := widget.NewButton("Start / Stop", func() {
-		dstPort, err := strconv.Atoi(inputDstPort.Text)
-		dstIP := net.ParseIP(inputDstIP.Text)
-
-		if !checkIPAddress(dstIP, window) {
-		} else if !checkPort(err, dstPort, window) {
-		} else if !serviceRunning {
-			log.Println("Starting UDP broadcast tunneling service")
-			widgetTunnelServiceStat.SetText("Running")
-			service.CaptureAndForwardPacket(stopThreadChannel, dstIP, dstPort)
-			serviceRunning = true
-		} else {
-			log.Println("Stopping UDP broadcast tunneling service")
-			stopThreadChannel <- true // Send stop signal to channel.
-			widgetTunnelServiceStat.SetText("Stopped")
-			serviceRunning = false
-		}
-	})
-
-	widgetGroupTunnelService := widget.NewGroup("Tunnelling Service", fyne.NewContainerWithLayout(layout.NewGridLayout(2),
-		buttonTunnelServiceStat, widgetTunnelServiceStat))
-
-	widgetGroupWireguard := widget.NewGroup("Wireguard", wireguard())
-
-	// ---------------- Container complete ----------------
-	containerAll := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
-		widgetGroupConf,
-		//widgetGroupPing,
-		widgetGroupTunnelService,
-		widgetGroupWireguard,
-	)
-	window.SetContent(containerAll)
-
-	// ---------------- Menu ----------------
-	// define and add the menu to the window
-	window.SetMainMenu(fyne.NewMainMenu(
-		fyne.NewMenu("Tool",
-			fyne.NewMenuItem("Reset configuration", func() {
-				defaultConf := config.GetDefaultConf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputDstIP.SetText(defaultConf.DstIP)
-				inputDstPort.SetText(strconv.Itoa(defaultConf.DstPort))
-				//widgetPingStatus.SetText("")
-				widgetTunnelServiceStat.SetText("")
-				log.Println("Reset of all input and status fields")
-			}),
-			fyne.NewMenuItem("Save configuration", func() {
-				dstIP := net.ParseIP(inputDstIP.Text)
-				if checkIPAddress(dstIP, window) {
-					dstPort, err := strconv.Atoi(inputDstPort.Text)
-					if checkPort(err, dstPort, window) {
-						writeConfigToFile(inputDstIP.Text, dstPort, window)
-					}
-				}
-			})),
-		fyne.NewMenu("Game selection",
-			fyne.NewMenuItem("Warcraft 3", func() {
-				w3Conf := config.GetWar3Conf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputDstPort.SetText(strconv.Itoa(w3Conf.DstPort))
-				log.Println("Set UDP port (" + strconv.Itoa(w3Conf.DstPort) + ") for selected game: Warcraft 3")
-			}),
-			fyne.NewMenuItem("CoD - UO", func() {
-				coDUOConf := config.GetCoDUOConf()
-				//TODO find an better way for update the variables and move menu ahead
-				inputDstPort.SetText(strconv.Itoa(coDUOConf.DstPort))
-				log.Println("Set UDP port (" + strconv.Itoa(coDUOConf.DstPort) + ") for selected game: Call of Duty - United Offensive")
-			})),
-		fyne.NewMenu("Help",
-			fyne.NewMenuItem("Show Log", func() {
-				//showWindowsConsole(true)
-			}),
-			fyne.NewMenuItem("About", func() {
-				// windows command to open the browser with the given link
-				exec.Command("rundll32", "url.dll,FileProtocolHandler", gitHubLink).Start()
-				log.Println("Open github site from the project")
-			}),
-		)))
+	window.SetContent(wireguard())
+	window.Resize(fyne.NewSize(300, window.Canvas().Size().Height))
 
 	// Show all of our set content and run the gui.
 	window.ShowAndRun()

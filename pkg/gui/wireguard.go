@@ -3,11 +3,11 @@ package gui
 import (
 	"image/color"
 
-	"fyne.io/fyne"
-	"fyne.io/fyne/canvas"
-	"fyne.io/fyne/container"
-	"fyne.io/fyne/layout"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 	"github.com/KingKeule/VPNubt/pkg/config"
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
@@ -15,10 +15,10 @@ import (
 var otherPeersSection *fyne.Container
 
 func wireguard() *fyne.Container {
-	return fyne.NewContainerWithLayout(
+	return container.New(
 		layout.NewVBoxLayout(),
-		widget.NewGroup("Control",
-			fyne.NewContainerWithLayout(
+		widget.NewCard("Control", "",
+			container.New(
 				layout.NewGridLayout(2),
 				widget.NewButton("Start / Stop", func() {}),
 				&canvas.Rectangle{
@@ -27,14 +27,14 @@ func wireguard() *fyne.Container {
 				},
 			),
 		),
-		widget.NewGroup("IPv4 Network",
+		widget.NewCard("IPv4 Network", "",
 			widget.NewForm(
 				widget.NewFormItem("CIDR", &widget.Entry{Text: config.Prefs.String("network")}),
 			),
 		),
-		widget.NewGroup("This Peer",
+		widget.NewCard("This Peer", "",
 			widget.NewForm(
-				widget.NewFormItem("IP", &widget.Select{
+				widget.NewFormItem("Local IP", &widget.Select{
 					Selected: config.Prefs.String("thisPeerIP"),
 					Options:  config.ThisNetworkHostAddresses(),
 					OnChanged: func(s string) {
@@ -43,20 +43,33 @@ func wireguard() *fyne.Container {
 						updateOtherPeerSection()
 					},
 				}),
+				widget.NewFormItem("Public IP", &widget.Entry{
+					PlaceHolder: "TODO",
+				}),
 				widget.NewFormItem("Private Key", &widget.Entry{
-					Text:     service.WgConf().Interface.PrivateKey.String(),
-					ReadOnly: true,
-					Wrapping: fyne.TextTruncate,
+					Text: service.WgConf().Interface.PrivateKey.String(),
 				}),
 				widget.NewFormItem("Public Key", &widget.Entry{
-					Text:     service.WgConf().Interface.PrivateKey.Public().String(),
-					ReadOnly: true,
-					Wrapping: fyne.TextTruncate,
+					Text: service.WgConf().Interface.PrivateKey.Public().String(),
 				}),
 				// TODO share button
 			),
 		),
-		widget.NewGroup("Other Peers", createOtherPeersSection()),
+		widget.NewCard("Other Peers", "",
+			widget.NewForm(
+				widget.NewFormItem("Local IP", &widget.Select{
+					Options:   config.ThisNetworkHostAddresses(),
+					OnChanged: func(s string) {},
+				}),
+				widget.NewFormItem("Public IP", &widget.Entry{
+					PlaceHolder: "Public IP",
+				}),
+				widget.NewFormItem("Public Key", &widget.Entry{
+					PlaceHolder: "Public Key",
+				}),
+			),
+		),
+		//widget.NewCard("Other Peers", "", createOtherPeersSection()),
 	)
 }
 
@@ -66,76 +79,34 @@ func createOtherPeersSection() *fyne.Container {
 
 	for _, h := range config.ThisNetworkHostAddresses() {
 
-		la := fyne.NewContainerWithLayout(
-			layout.NewGridLayout(4),
-		)
+		la := container.NewGridWithRows(3)
+		laFirst := container.NewGridWithColumns(2)
 
 		entry := widget.NewEntry()
 		entry.SetPlaceHolder("Local IP")
 		entry.SetText(h)
-		// Wrap entry in a container that prevents resizing
-		fixedWidth := fyne.NewSize(20, entry.MinSize().Height)
-		wrapper := container.NewMax(entry)
-		wrapper.Resize(fixedWidth)
-		la.Add(wrapper)
+		laFirst.Add(entry)
+
+		button := widget.NewButton("Apply", func() {})
+		laFirst.Add(button)
+
+		la.Add(laFirst)
 
 		entry = widget.NewEntry()
 		entry.SetPlaceHolder("Public IP")
-		// Wrap entry in a container that prevents resizing
-		fixedWidth = fyne.NewSize(20, entry.MinSize().Height)
-		wrapper = container.NewMax(entry)
-		wrapper.Resize(fixedWidth)
-		la.Add(wrapper)
+		la.Add(entry)
 
 		entry = widget.NewEntry()
 		entry.SetPlaceHolder("Public Key")
-		// Wrap entry in a container that prevents resizing
-		fixedWidth = fyne.NewSize(20, entry.MinSize().Height)
-		wrapper = container.NewMax(entry)
-		wrapper.Resize(fixedWidth)
-		la.Add(wrapper)
-
-		button := widget.NewButton("Apply", func() {})
-		// Wrap entry in a container that prevents resizing
-		fixedWidth = fyne.NewSize(20, entry.MinSize().Height)
-		wrapper = container.NewMax(button)
-		wrapper.Resize(fixedWidth)
-		la.Add(wrapper)
+		la.Add(entry)
 
 		objects = append(objects, la)
-
-		// &fyne.Container{
-		// 	Layout: layout.NewGridLayout(4),
-		// 	Objects: []fyne.CanvasObject{
-		// 		&widget.Entry{
-		// 			Text:        strings.ReplaceAll(h, ".", "_"),
-		// 			PlaceHolder: "Custom Name",
-		// 			Wrapping:    fyne.TextTruncate,
-		// 		},
-		// 		&widget.Entry{
-		// 			PlaceHolder: "Public IP",
-		// 			Wrapping:    fyne.TextTruncate,
-		// 		},
-		// 		&widget.Entry{
-		// 			PlaceHolder: "Public Key",
-		// 			Wrapping:    fyne.TextTruncate,
-		// 			OnChanged:   func(s string) {},
-		// 		},
-		// 		&widget.Button{
-		// 			Text:     "Apply",
-		// 			OnTapped: func() {},
-		// 		},
-		// 	},
-		// },
-
+		objects = append(objects, widget.NewSeparator())
 	}
 
-	otherPeersSection = &fyne.Container{
-		Layout:  layout.NewVBoxLayout(),
-		Objects: objects,
-	}
+	otherPeersSection = container.NewVBox(objects...)
 
-	updateOtherPeerSection()
+	//updateOtherPeerSection()
 
 	return otherPeersSection
 }
@@ -143,10 +114,10 @@ func createOtherPeersSection() *fyne.Container {
 func updateOtherPeerSection() {
 	for _, o := range otherPeersSection.Objects {
 		toDisable := o.(*fyne.Container).Objects
-		privateIP := toDisable[0].(*fyne.Container).Objects[0].(*widget.Entry)
-		publicIP := toDisable[1].(*fyne.Container).Objects[0].(*widget.Entry)
-		publicKey := toDisable[2].(*fyne.Container).Objects[0].(*widget.Entry)
-		apply := toDisable[3].(*fyne.Container).Objects[0].(*widget.Button)
+		privateIP := toDisable[0].(*widget.Entry)
+		publicIP := toDisable[1].(*widget.Entry)
+		publicKey := toDisable[2].(*widget.Entry)
+		apply := toDisable[3].(*widget.Button)
 		if privateIP.Text == config.Prefs.String("thisPeerIP") {
 			privateIP.Disable()
 			publicIP.Disable()
