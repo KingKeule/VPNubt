@@ -6,17 +6,60 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/KingKeule/VPNubt/pkg/config"
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
-var otherPeersIP *widget.Select = nil
+var currentOtherPeerLocalIP binding.String
+var currentOtherPeerPublicIP string
+var currentOtherPeerPublicKey string
 
 func wireguard() *fyne.Container {
 
-	otherPeersIP = widget.NewSelect(config.ThisNetworkRemainingHostAddresses(), func(s string) {})
+	selected := config.FirstOfRemainingHostAddresses()
+
+	currentOtherPeerLocalIP = binding.NewString()
+	currentOtherPeerLocalIP.Set(selected)
+
+	currentOtherPeerPublicIP = config.GetPublicIPOfPeer(selected)
+	currentOtherPeerPublicKey = config.GetPublicKeyOfPeer(selected)
+
+	otherPeerLocalIp := &widget.Select{
+		Options:  config.ThisNetworkRemainingHostAddresses(),
+		Selected: selected,
+		OnChanged: func(updatedValue string) {
+			currentOtherPeerLocalIP.Set(updatedValue)
+		},
+	}
+
+	otherPeerPublicIP := &widget.Entry{
+		PlaceHolder: "Public IP",
+		Text:        config.GetPublicIPOfPeer(selected),
+		OnChanged: func(updatedValue string) {
+			currentOtherPeerPublicIP = updatedValue
+		},
+	}
+
+	otherPeerPublicKey := &widget.Entry{
+		PlaceHolder: "Public Key",
+		Text:        config.GetPublicKeyOfPeer(selected),
+		OnChanged: func(updatedValue string) {
+			currentOtherPeerPublicKey = updatedValue
+		},
+	}
+
+	currentOtherPeerLocalIP.AddListener(binding.NewDataListener(func() {
+		peer, _ := currentOtherPeerLocalIP.Get()
+		currentOtherPeerPublicIP = config.GetPublicIPOfPeer(peer)
+		currentOtherPeerPublicKey = config.GetPublicKeyOfPeer(peer)
+		otherPeerPublicIP.Text = currentOtherPeerPublicIP
+		otherPeerPublicKey.Text = currentOtherPeerPublicKey
+		otherPeerPublicIP.Refresh()
+		otherPeerPublicKey.Refresh()
+	}))
 
 	return container.New(
 		layout.NewVBoxLayout(),
@@ -32,7 +75,9 @@ func wireguard() *fyne.Container {
 		),
 		widget.NewCard("IPv4 Network", "",
 			widget.NewForm(
-				widget.NewFormItem("CIDR", &widget.Entry{Text: config.Prefs.String("network")}),
+				widget.NewFormItem("CIDR", &widget.Entry{
+					Text: config.Prefs.String("network"),
+				}),
 			),
 		),
 		widget.NewCard("This Peer", "",
@@ -43,7 +88,6 @@ func wireguard() *fyne.Container {
 					OnChanged: func(s string) {
 						config.Prefs.SetString("thisPeerIP", s)
 						// TODO warn if overwrite existing peer
-						otherPeersIP.Options = config.ThisNetworkRemainingHostAddresses()
 					},
 				}),
 				widget.NewFormItem("Public IP", &widget.Entry{
@@ -59,13 +103,17 @@ func wireguard() *fyne.Container {
 			),
 		),
 		widget.NewCard("Other Peers", "",
-			widget.NewForm(
-				widget.NewFormItem("Local IP", otherPeersIP),
-				widget.NewFormItem("Public IP", &widget.Entry{
-					PlaceHolder: "Public IP",
-				}),
-				widget.NewFormItem("Public Key", &widget.Entry{
-					PlaceHolder: "Public Key",
+			container.New(
+				layout.NewVBoxLayout(),
+				widget.NewForm(
+					widget.NewFormItem("Local IP", otherPeerLocalIp),
+					widget.NewFormItem("Public IP", otherPeerPublicIP),
+					widget.NewFormItem("Public Key", otherPeerPublicKey),
+				),
+				widget.NewButton("Apply Peer Settings", func() {
+					peer, _ := currentOtherPeerLocalIP.Get()
+					config.SetPublicIPOfPeer(peer, currentOtherPeerPublicIP)
+					config.SetPublicKeyOfPeer(peer, currentOtherPeerPublicKey)
 				}),
 			),
 		),

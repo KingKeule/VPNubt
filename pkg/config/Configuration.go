@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"net/netip"
+	"strings"
 
 	"fyne.io/fyne"
 )
@@ -39,6 +41,34 @@ func ThisNetworkRemainingHostAddresses() []string {
 		remain = append(remain, o)
 	}
 	return remain
+}
+
+func FirstOfRemainingHostAddresses() string {
+	return ThisNetworkRemainingHostAddresses()[0]
+}
+
+func GetPublicIPOfPeer(peerLocalIP string) string {
+	ipAsHostname := strings.ReplaceAll(peerLocalIP, ".", "-")
+	key := fmt.Sprintf("PublicIP-of-Peer-%s", ipAsHostname)
+	return Prefs.StringWithFallback(key, "")
+}
+
+func SetPublicIPOfPeer(peerLocalIP, peerPublicIP string) {
+	ipAsHostname := strings.ReplaceAll(peerLocalIP, ".", "-")
+	key := fmt.Sprintf("PublicIP-of-Peer-%s", ipAsHostname)
+	Prefs.SetString(key, peerPublicIP)
+}
+
+func GetPublicKeyOfPeer(peerLocalIP string) string {
+	ipAsHostname := strings.ReplaceAll(peerLocalIP, ".", "-")
+	key := fmt.Sprintf("PublicKey-of-Peer-%s", ipAsHostname)
+	return Prefs.StringWithFallback(key, "")
+}
+
+func SetPublicKeyOfPeer(peerLocalIP, peerPublicKey string) {
+	ipAsHostname := strings.ReplaceAll(peerLocalIP, ".", "-")
+	key := fmt.Sprintf("PublicKey-of-Peer-%s", ipAsHostname)
+	Prefs.SetString(key, peerPublicKey)
 }
 
 func hosts(cidr string) ([]netip.Addr, error) {
