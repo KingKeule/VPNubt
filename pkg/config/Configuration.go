@@ -29,6 +29,18 @@ func ThisNetworkHostAddresses() []string {
 	return result
 }
 
+func ThisNetworkRemainingHostAddresses() []string {
+	other := ThisNetworkHostAddresses()
+	remain := make([]string, 0, len(other)-1)
+	for _, o := range other {
+		if o == Prefs.String("thisPeerIP") {
+			continue
+		}
+		remain = append(remain, o)
+	}
+	return remain
+}
+
 func hosts(cidr string) ([]netip.Addr, error) {
 	var ips []netip.Addr
 	prefix, err := netip.ParsePrefix(cidr)

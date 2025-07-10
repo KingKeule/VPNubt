@@ -12,9 +12,12 @@ import (
 	"github.com/KingKeule/VPNubt/pkg/service"
 )
 
-var otherPeersSection *fyne.Container
+var otherPeersIP *widget.Select = nil
 
 func wireguard() *fyne.Container {
+
+	otherPeersIP = widget.NewSelect(config.ThisNetworkRemainingHostAddresses(), func(s string) {})
+
 	return container.New(
 		layout.NewVBoxLayout(),
 		widget.NewCard("Control", "",
@@ -40,7 +43,7 @@ func wireguard() *fyne.Container {
 					OnChanged: func(s string) {
 						config.Prefs.SetString("thisPeerIP", s)
 						// TODO warn if overwrite existing peer
-						updateOtherPeerSection()
+						otherPeersIP.Options = config.ThisNetworkRemainingHostAddresses()
 					},
 				}),
 				widget.NewFormItem("Public IP", &widget.Entry{
@@ -57,10 +60,7 @@ func wireguard() *fyne.Container {
 		),
 		widget.NewCard("Other Peers", "",
 			widget.NewForm(
-				widget.NewFormItem("Local IP", &widget.Select{
-					Options:   config.ThisNetworkHostAddresses(),
-					OnChanged: func(s string) {},
-				}),
+				widget.NewFormItem("Local IP", otherPeersIP),
 				widget.NewFormItem("Public IP", &widget.Entry{
 					PlaceHolder: "Public IP",
 				}),
@@ -69,65 +69,5 @@ func wireguard() *fyne.Container {
 				}),
 			),
 		),
-		//widget.NewCard("Other Peers", "", createOtherPeersSection()),
 	)
-}
-
-func createOtherPeersSection() *fyne.Container {
-
-	objects := make([]fyne.CanvasObject, 0)
-
-	for _, h := range config.ThisNetworkHostAddresses() {
-
-		la := container.NewGridWithRows(3)
-		laFirst := container.NewGridWithColumns(2)
-
-		entry := widget.NewEntry()
-		entry.SetPlaceHolder("Local IP")
-		entry.SetText(h)
-		laFirst.Add(entry)
-
-		button := widget.NewButton("Apply", func() {})
-		laFirst.Add(button)
-
-		la.Add(laFirst)
-
-		entry = widget.NewEntry()
-		entry.SetPlaceHolder("Public IP")
-		la.Add(entry)
-
-		entry = widget.NewEntry()
-		entry.SetPlaceHolder("Public Key")
-		la.Add(entry)
-
-		objects = append(objects, la)
-		objects = append(objects, widget.NewSeparator())
-	}
-
-	otherPeersSection = container.NewVBox(objects...)
-
-	//updateOtherPeerSection()
-
-	return otherPeersSection
-}
-
-func updateOtherPeerSection() {
-	for _, o := range otherPeersSection.Objects {
-		toDisable := o.(*fyne.Container).Objects
-		privateIP := toDisable[0].(*widget.Entry)
-		publicIP := toDisable[1].(*widget.Entry)
-		publicKey := toDisable[2].(*widget.Entry)
-		apply := toDisable[3].(*widget.Button)
-		if privateIP.Text == config.Prefs.String("thisPeerIP") {
-			privateIP.Disable()
-			publicIP.Disable()
-			publicKey.Disable()
-			apply.Disable()
-			continue
-		}
-		privateIP.Enable()
-		publicIP.Enable()
-		publicKey.Enable()
-		apply.Enable()
-	}
 }
