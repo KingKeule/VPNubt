@@ -88,3 +88,13 @@ func hosts(cidr string) ([]netip.Addr, error) {
 
 	return ips[1 : len(ips)-1], nil
 }
+
+func IsPeerConfigured(ip string) bool {
+	ipAsHostname := strings.ReplaceAll(ip, ".", "-")
+	key1 := fmt.Sprintf("PublicIP-of-Peer-%s", ipAsHostname)
+	key2 := fmt.Sprintf("PublicKey-of-Peer-%s", ipAsHostname)
+	if Prefs.StringWithFallback(key1, "") != "" && Prefs.StringWithFallback(key2, "") != "" {
+		return true
+	}
+	return false
+}

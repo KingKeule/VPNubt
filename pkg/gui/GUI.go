@@ -40,7 +40,7 @@ func InitGUI() {
 	// do not allow to resize the window
 	window.SetFixedSize(true)
 
-	window.SetContent(wireguard())
+	window.SetContent(wireguard(window))
 	window.Resize(fyne.NewSize(300, window.Canvas().Size().Height))
 
 	// Show all of our set content and run the gui.

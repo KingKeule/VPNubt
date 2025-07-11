@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/KingKeule/VPNubt/pkg/config"
@@ -17,7 +18,7 @@ var currentOtherPeerLocalIP binding.String
 var currentOtherPeerPublicIP string
 var currentOtherPeerPublicKey string
 
-func wireguard() *fyne.Container {
+func wireguard(parent fyne.Window) *fyne.Container {
 
 	selectedOtherPeer := config.FirstOfRemainingHostAddresses()
 
@@ -86,8 +87,12 @@ func wireguard() *fyne.Container {
 					Selected: config.Prefs.String("thisPeerIP"),
 					Options:  config.ThisNetworkHostAddresses(),
 					OnChanged: func(s string) {
+						conflict := config.IsPeerConfigured(s)
+						if conflict {
+							dialog.ShowInformation("Conflict", "This IP is already configured for another peer", parent)
+							return
+						}
 						config.Prefs.SetString("thisPeerIP", s)
-						// TODO warn if overwrite existing peer
 					},
 				}),
 				widget.NewFormItem("Public IP", &widget.Entry{
