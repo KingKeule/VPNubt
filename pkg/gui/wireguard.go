@@ -19,17 +19,17 @@ var currentOtherPeerPublicKey string
 
 func wireguard() *fyne.Container {
 
-	selected := config.FirstOfRemainingHostAddresses()
+	selectedOtherPeer := config.FirstOfRemainingHostAddresses()
 
 	currentOtherPeerLocalIP = binding.NewString()
-	currentOtherPeerLocalIP.Set(selected)
+	currentOtherPeerLocalIP.Set(selectedOtherPeer)
 
-	currentOtherPeerPublicIP = config.GetPublicIPOfPeer(selected)
-	currentOtherPeerPublicKey = config.GetPublicKeyOfPeer(selected)
+	currentOtherPeerPublicIP = config.GetPublicIPOfPeer(selectedOtherPeer)
+	currentOtherPeerPublicKey = config.GetPublicKeyOfPeer(selectedOtherPeer)
 
 	otherPeerLocalIp := &widget.Select{
 		Options:  config.ThisNetworkRemainingHostAddresses(),
-		Selected: selected,
+		Selected: selectedOtherPeer,
 		OnChanged: func(updatedValue string) {
 			currentOtherPeerLocalIP.Set(updatedValue)
 		},
@@ -37,7 +37,7 @@ func wireguard() *fyne.Container {
 
 	otherPeerPublicIP := &widget.Entry{
 		PlaceHolder: "Public IP",
-		Text:        config.GetPublicIPOfPeer(selected),
+		Text:        config.GetPublicIPOfPeer(selectedOtherPeer),
 		OnChanged: func(updatedValue string) {
 			currentOtherPeerPublicIP = updatedValue
 		},
@@ -45,7 +45,7 @@ func wireguard() *fyne.Container {
 
 	otherPeerPublicKey := &widget.Entry{
 		PlaceHolder: "Public Key",
-		Text:        config.GetPublicKeyOfPeer(selected),
+		Text:        config.GetPublicKeyOfPeer(selectedOtherPeer),
 		OnChanged: func(updatedValue string) {
 			currentOtherPeerPublicKey = updatedValue
 		},
