@@ -100,7 +100,7 @@ If you want to know how we reengineered it, read on here.
    an external program.
    </details>
 
-4. Proof of Concept  
+3. Proof of Concept  
 Try to inform the game server by sending an unicast instead of broadcast by an external tool. For this PoC we used the software [nping](https://nmap.org/nping/)  
    * Start on the remote computer (server) Warcraft 3.
    * Call nping (C:\Program Files (x86)\Nmap\nping) from command line on the client:
