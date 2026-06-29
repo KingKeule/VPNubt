@@ -1,13 +1,13 @@
 package gui
 
 import (
-	"image/color"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
+
+const heightScaleFactor = 3
 
 type GroupCustom struct {
 	widget.BaseWidget
@@ -31,14 +31,16 @@ type customGroupRenderer struct {
 }
 
 func (groupCustom *GroupCustom) CreateRenderer() fyne.WidgetRenderer {
-	groupCustomColorBG := theme.BackgroundColor()
+	groupCustomColorBG := fyne.CurrentApp().Settings().Theme().Color(theme.ColorNameBackground, fyne.CurrentApp().Settings().ThemeVariant())
+	groupCustomColorFG := fyne.CurrentApp().Settings().Theme().Color(theme.ColorNameForeground, fyne.CurrentApp().Settings().ThemeVariant())
+	groupCustomColorSep := fyne.CurrentApp().Settings().Theme().Color(theme.ColorNameSeparator, fyne.CurrentApp().Settings().ThemeVariant())
 
 	return &customGroupRenderer{
 		groupCustom:   groupCustom,
 		frameBG:       canvas.NewRectangle(groupCustomColorBG),
 		textFrame:     canvas.NewRectangle(groupCustomColorBG),
-		separatorLine: canvas.NewLine(color.NRGBA{R: 30, G: 30, B: 30, A: 255}),
-		text:          canvas.NewText(groupCustom.HeadlineText, theme.ForegroundColor()),
+		separatorLine: canvas.NewLine(groupCustomColorSep),
+		text:          canvas.NewText(groupCustom.HeadlineText, groupCustomColorFG),
 	}
 }
 
@@ -75,7 +77,7 @@ func (r *customGroupRenderer) MinSize() fyne.Size {
 	ts := fyne.MeasureText(r.text.Text, r.text.TextSize, r.text.TextStyle)
 
 	// Use the theme padding to set a border size
-	return fyne.NewSize(ts.Width+theme.Padding()*2, ts.Height+theme.Padding()*2)
+	return fyne.NewSize(ts.Width+theme.Padding(), ts.Height+theme.Padding()*heightScaleFactor)
 }
 
 // Define the order in which the objects are placed on top of each other.
