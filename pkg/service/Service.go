@@ -11,33 +11,31 @@ import (
 )
 
 // checks whether the given ip host address can be pinged
-func Ping(addr string) (bool, error) {
+func Ping(addr string, result chan bool) {
 
-	p := fastping.NewPinger()
-	ra, err := net.ResolveIPAddr("ip4:icmp", addr /*inputIP.Text*/)
-	var recieved bool = false
-
+	ra, err := net.ResolveIPAddr("ip4:icmp", addr)
 	if err != nil {
 		log.Println(err)
-		return recieved, err
+		result <- false
 	}
 
+	p := fastping.NewPinger()
 	p.AddIPAddr(ra)
 	p.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
-		recieved = true
 		log.Printf("IP Addr: %s receive, RTT: %v\n", addr.String(), rtt)
+		result <- true
 	}
 
 	p.OnIdle = func() {
-		log.Println("Ping job finished")
+		log.Println("Ping finished")
 	}
 
-	err = p.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return recieved, nil
+	// XXX the err return by this function is never nil even if ping destination not reached
+	_ = p.Run()
+	// if err != nil {
+	// 	log.Println(err)
+	// 	result <- false
+	// }
 }
 
 // capture all udp broadcast packets on given port and forward them to the given destination ip address
